@@ -26,21 +26,22 @@ interface TaskCardProps {
   onUpdateTaskImage: (taskId: string, newImageUrl: string) => void;
 }
 
-const priorityBadgeClassConfig: Record<Priority, { bg: string; text: string; border: string }> = {
+const priorityBadgeClassConfig: Record<Priority, { baseBg: string; text: string; border: string; animatedClass?: string }> = {
   low: {
-    bg: 'bg-transparent hover:bg-[hsl(var(--priority-low-bg-hsl)/0.5)]',
+    baseBg: 'bg-[hsl(var(--priority-low-bg-hsl))]',
     text: 'text-[hsl(var(--priority-low-fg-hsl))]',
     border: 'border-[hsl(var(--priority-low-border-hsl))]',
   },
   medium: {
-    bg: 'bg-transparent hover:bg-[hsl(var(--priority-medium-bg-hsl)/0.5)]',
+    baseBg: 'bg-[hsl(var(--priority-medium-bg-hsl))]',
     text: 'text-[hsl(var(--priority-medium-fg-hsl))]',
     border: 'border-[hsl(var(--priority-medium-border-hsl))]',
   },
   high: {
-    bg: 'bg-transparent hover:bg-[hsl(var(--priority-high-bg-hsl)/0.5)]',
+    baseBg: 'bg-[hsl(var(--priority-high-bg-hsl))]',
     text: 'text-[hsl(var(--priority-high-fg-hsl))]',
     border: 'border-[hsl(var(--priority-high-border-hsl))]',
+    animatedClass: 'animate-pulse-subtle-bg' 
   },
 };
 
@@ -59,7 +60,8 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
   const completedSubtasks = task.subtasks.filter(st => st.completed).length;
   const totalSubtasks = task.subtasks.length;
   const subtaskProgressPercentage = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
-  const badgeClasses = priorityBadgeClassConfig[task.priority];
+  
+  const badgeConfig = priorityBadgeClassConfig[task.priority];
   const cardBgClass = priorityCardBgClasses[task.priority];
 
   const displayImageUrl = task.imageUrl || 'https://placehold.co/600x400.png';
@@ -143,13 +145,14 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
         <div className="flex justify-between items-start">
           <CardTitle className={cn("text-lg font-semibold leading-tight", task.completed && "line-through text-muted-foreground")}>{task.title}</CardTitle>
           <Badge
-            variant="outline"
+            variant="outline" // Base variant, custom styles override as needed
             className={cn(
               "capitalize text-xs px-2 py-0.5 font-medium",
-              badgeClasses.bg,
-              badgeClasses.text,
-              badgeClasses.border,
-              task.completed && "border-transparent bg-muted text-muted-foreground"
+              badgeConfig.baseBg,
+              badgeConfig.text,
+              badgeConfig.border,
+              task.priority === 'high' && !task.completed && badgeConfig.animatedClass,
+              task.completed && "border-transparent !bg-muted text-muted-foreground opacity-70" 
             )}
           >
             {task.priority}

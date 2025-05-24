@@ -175,7 +175,7 @@
   pointer-events: none;
 }
 
-/* High Priority Glow Animation */
+/* High Priority Glow Animation for Card */
 @keyframes high-priority-glow {
   0%, 100% {
     /* Use a slightly less spread shadow for the "resting" state */
@@ -192,4 +192,14 @@
   animation-duration: 2.5s; /* Slightly slower for a calmer pulse */
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
+}
+
+/* High Priority Badge Pulsing Animation */
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.animate-pulse-subtle-bg {
+  animation: pulse-opacity 2.5s infinite ease-in-out;
 }
