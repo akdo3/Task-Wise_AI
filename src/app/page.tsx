@@ -400,7 +400,7 @@ export default function HomePage() {
 
   return (
     <TooltipProvider delayDuration={100}>
-      <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex flex-col min-h-screen bg-background scrollbar-thin">
         <Header onAddTask={() => handleOpenTaskForm()} />
         <main className="flex-grow container mx-auto px-4 py-12">
           <TaskStatsDashboard tasks={tasks} />
