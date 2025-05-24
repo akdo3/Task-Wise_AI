@@ -5,6 +5,7 @@ import type { FC } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Lightbulb } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface DailyMotivationProps {
   motivation: { quote: string; date: string } | null;
@@ -34,7 +35,10 @@ export const DailyMotivation: FC<DailyMotivationProps> = ({ motivation, isLoadin
   }
 
   return (
-    <Card className="mb-8 shadow-md bg-accent/5 border-accent/20">
+    <Card className={cn(
+        "mb-8 shadow-md bg-accent/5 border-accent/20",
+        !isLoading && motivation && "animate-fade-in-up"
+        )}>
       <CardHeader>
         <CardTitle className="text-lg flex items-center text-accent/90">
           <Lightbulb className="mr-2 h-5 w-5 text-yellow-400 fill-yellow-400/50" />
@@ -49,3 +53,4 @@ export const DailyMotivation: FC<DailyMotivationProps> = ({ motivation, isLoadin
     </Card>
   );
 };
+

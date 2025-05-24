@@ -32,7 +32,7 @@ const AiTaskAssistantPromptInputSchema = z.object({
 const AiTaskAssistantOutputSchema = z.object({
   approachSuggestions: z.array(z.string()).describe('Suggestions on how to approach the task. These should be actionable and concise.'),
   improvedDescription: z.string().describe('An improved, more detailed, and clear description of the task. If the original description was good, refine it subtly or confirm its quality.'),
-  generatedSubtasks: z.array(z.string()).describe('A list of generated subtasks for the task. These should be distinct from provided subtasks and help break down the main task further.'),
+  generatedSubtasks: z.array(z.string()).describe('A list of generated subtasks for the task. These should be distinct from provided subtasks and help break down the main task further. If no further subtasks are logical, provide an empty array.'),
   suggestedEmoji: z.string().optional().describe("A single, relevant emoji character that could be prepended to the task title. For example: '🎉' or '🛒'. If no suitable emoji, this can be omitted."),
   suggestedTagline: z.string().optional().describe("A short, creative, and motivational tagline or motto for the task (max 10 words). For example: 'Let's get this done!' or 'Conquer the challenge!'. If no suitable tagline, this can be omitted."),
   suggestedImageQuery: z.string().max(40).optional().describe("A concise and descriptive prompt (max 7 words) suitable for an image generation model to create a relevant image for this task. E.g., 'professional team collaborating on project' or 'serene mountain landscape at dawn'. This is only generated if no imageUrl is provided in the input."),
@@ -105,3 +105,4 @@ const aiTaskAssistantFlow = ai.defineFlow(
     return output!;
   }
 );
+
