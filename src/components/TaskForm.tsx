@@ -51,9 +51,20 @@ interface TaskFormProps {
   onGetAiSuggestions: (data: AiTaskFormInput) => Promise<AiTaskAssistantOutput | { error: string } | undefined>;
   activeImageQuery?: string | null;
   onClearActiveImageQuery: () => void;
+  stagedEmoji?: string | null;
+  onClearStagedEmoji: () => void;
 }
 
-export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiSuggestions, activeImageQuery, onClearActiveImageQuery }) => {
+export const TaskForm: FC<TaskFormProps> = ({ 
+  task, 
+  onSubmit, 
+  onCancel, 
+  onGetAiSuggestions, 
+  activeImageQuery, 
+  onClearActiveImageQuery,
+  stagedEmoji,
+  onClearStagedEmoji 
+}) => {
   const { toast } = useToast();
   const [currentTag, setCurrentTag] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -91,32 +102,40 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
   const tags = watch('tags') || [];
 
   useEffect(() => {
-    if (task) {
-      reset({
-        title: task.title,
-        description: task.description || '',
-        priority: task.priority,
-        dueDate: task.dueDate ? parseISO(task.dueDate) : undefined,
-        reminderDate: task.reminderDate ? parseISO(task.reminderDate) : undefined,
-        tags: task.tags || [],
-        subtasks: task.subtasks || [],
-        delegatedTo: task.delegatedTo || '',
-        imageUrl: task.imageUrl || '',
-      });
-    } else {
-      reset({
-        title: '',
-        description: '',
-        priority: 'medium',
-        dueDate: undefined,
-        reminderDate: undefined,
-        tags: [],
-        subtasks: [],
-        delegatedTo: '',
-        imageUrl: '',
-      });
+    let titleToSet = task?.title || '';
+    if (task && stagedEmoji) {
+      // If a staged emoji exists, and the task title doesn't already start with it,
+      // it implies the emoji was staged *after* the form was opened with an existing task.
+      // The actual prepending happens on submit; here we just ensure the raw title is used for editing.
+      // However, if the task.title ALREADY has this emoji from a previous save, that's fine.
+       const titleParts = task.title.split(" ");
+       const firstPart = titleParts[0];
+       if (/\p{Emoji}/u.test(firstPart) && firstPart === stagedEmoji) {
+        // Title already has the staged emoji, no change needed for display in form
+       } else if (/\p{Emoji}/u.test(firstPart) && firstPart !== stagedEmoji) {
+        // Title has a DIFFERENT emoji, use title without it for editing
+        titleToSet = task.title.replace(/^\p{Emoji_Presentation}\s*/u, '').trimStart();
+       } else if (!/\p{Emoji}/u.test(firstPart) && stagedEmoji){
+        // Title has no emoji, but one is staged. Use raw title for editing.
+        // Staged emoji will be shown next to label.
+       }
+    } else if (!task && stagedEmoji) {
+      // New task, emoji staged. Title input is empty. Emoji shown by label.
     }
-  }, [task, reset]);
+
+
+    reset({
+      title: titleToSet,
+      description: task?.description || '',
+      priority: task?.priority || 'medium',
+      dueDate: task?.dueDate ? parseISO(task.dueDate) : undefined,
+      reminderDate: task?.reminderDate ? parseISO(task.reminderDate) : undefined,
+      tags: task?.tags || [],
+      subtasks: task?.subtasks || [],
+      delegatedTo: task?.delegatedTo || '',
+      imageUrl: task?.imageUrl || '',
+    });
+  }, [task, reset, stagedEmoji]); // Add stagedEmoji to dependency array
 
   const handleAddTag = () => {
     if (currentTag.trim() && !tags.includes(currentTag.trim()) && tags.length < 5) {
@@ -137,8 +156,14 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
 
   const handleAiAssist = async () => {
     const formData = watch(); 
+    let currentTitle = formData.title || '';
+    // If a staged emoji is present and not already in the input, consider it for AI context
+    if (stagedEmoji && !currentTitle.startsWith(stagedEmoji)) {
+        currentTitle = `${stagedEmoji} ${currentTitle}`;
+    }
+
     const aiInput: AiTaskFormInput = {
-      description: formData.description || formData.title || "New Task", 
+      description: formData.description || currentTitle || "New Task", 
       subtasks: formData.subtasks?.map(st => st.text) || [],
       priority: formData.priority || 'medium',
       dueDate: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : '',
@@ -201,8 +226,25 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-1">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
         <div>
-          <Label htmlFor="title" className="text-sm font-medium">Title</Label>
-          <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} className="mt-1.5"/>
+          <div className="flex items-center gap-2 mb-1.5">
+            {stagedEmoji && (
+              <div className="flex items-center gap-1 bg-accent/10 px-2 py-1 rounded-md">
+                <span className="text-xl">{stagedEmoji}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClearStagedEmoji}
+                  className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                  aria-label="Clear staged emoji"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+            <Label htmlFor="title" className="text-sm font-medium">Title</Label>
+          </div>
+          <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} />
           {errors.title && <p className="text-xs text-destructive mt-1.5">{errors.title.message}</p>}
         </div>
         <div>

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Task, Subtask, AiTaskFormInput } from '@/types';
-import { Header } from '@/components/layout/Header'; // Restored Header import
+import { Header } from '@/components/layout/Header';
 import { TaskList } from '@/components/TaskList';
 import { TaskForm, type TaskFormData } from '@/components/TaskForm';
 import { TaskFilterControls, type FilterState } from '@/components/TaskFilterControls';
@@ -96,6 +96,7 @@ export default function HomePage() {
   const [rawAiOutputForDialog, setRawAiOutputForDialog] = useState<AiTaskAssistantOutput | null>(null);
   const [stagedAiSuggestionsForSave, setStagedAiSuggestionsForSave] = useState<Partial<AiTaskAssistantOutput> | null>(null);
   const [imageQueryForForm, setImageQueryForForm] = useState<string | null>(null);
+  const [stagedEmojiForForm, setStagedEmojiForForm] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -164,8 +165,17 @@ export default function HomePage() {
   const handleOpenTaskForm = (task: Task | null = null) => {
     setEditingTask(task);
     setIsTaskFormOpen(true);
-    if (!task && imageQueryForForm) {
-      // Clearing imageQueryForForm is handled in handleCloseTaskForm
+    // If opening for a new task, ensure staged emoji/query from a previous edit are cleared,
+    // unless they are meant to persist for a new task immediately after AI suggestions.
+    // Current logic clears them on form close, which is generally fine.
+    if (task) {
+        // If editing, and the task title already starts with an emoji that matches a potential staged emoji,
+        // pre-fill stagedEmojiForForm so it's visible.
+        const titleParts = task.title.split(" ");
+        const firstPart = titleParts[0];
+        if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { // Simple emoji check
+            setStagedEmojiForForm(firstPart);
+        }
     }
   };
 
@@ -175,6 +185,7 @@ export default function HomePage() {
     setRawAiOutputForDialog(null);
     setStagedAiSuggestionsForSave(null);
     setImageQueryForForm(null);
+    setStagedEmojiForForm(null); // Clear staged emoji on close
   };
 
   const handleTaskSubmit = (data: TaskFormData) => {
@@ -204,14 +215,9 @@ export default function HomePage() {
             finalTaskData.subtasks = [...(finalTaskData.subtasks || []), ...newAiSubtasks];
         }
         if (stagedAiSuggestionsForSave.suggestedEmoji && finalTaskData.title) {
-            const currentEmojiPart = finalTaskData.title.split(" ")[0];
-            const isEmojiAlreadyPresent = /\p{Emoji}/u.test(currentEmojiPart);
-
-            if (!isEmojiAlreadyPresent || !finalTaskData.title.startsWith(stagedAiSuggestionsForSave.suggestedEmoji)) {
-                 finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${finalTaskData.title}`;
-            } else if (isEmojiAlreadyPresent && currentEmojiPart !== stagedAiSuggestionsForSave.suggestedEmoji) {
-                 finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${finalTaskData.title.substring(currentEmojiPart.length).trimStart()}`;
-            }
+             // Remove any existing emoji before prepending the new one
+            const titleWithoutExistingEmoji = finalTaskData.title.replace(/^\p{Emoji_Presentation}\s*/u, '').trimStart();
+            finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${titleWithoutExistingEmoji}`;
         }
         if (stagedAiSuggestionsForSave.suggestedTagline && finalTaskData.description !== undefined) {
             if (!finalTaskData.description.includes(stagedAiSuggestionsForSave.suggestedTagline)) {
@@ -354,12 +360,24 @@ export default function HomePage() {
     if (appliedSuggestions.suggestedImageQuery) {
       setImageQueryForForm(appliedSuggestions.suggestedImageQuery);
     }
+    if (appliedSuggestions.suggestedEmoji) {
+      setStagedEmojiForForm(appliedSuggestions.suggestedEmoji);
+    }
 
      toast({
       title: "AI Suggestion Queued",
       description: "The suggestion has been noted. Save the task to apply it, or use staged elements like the image query for generation.",
     });
      setIsAiSuggestionsOpen(false);
+  };
+
+  const handleClearStagedEmoji = () => {
+    setStagedEmojiForForm(null);
+    setStagedAiSuggestionsForSave(prev => {
+        if (!prev) return null;
+        const { suggestedEmoji, ...rest } = prev;
+        return Object.keys(rest).length > 0 ? rest : null;
+    });
   };
 
 
@@ -399,6 +417,8 @@ export default function HomePage() {
                     onGetAiSuggestions={handleGetAiSuggestions}
                     activeImageQuery={imageQueryForForm}
                     onClearActiveImageQuery={() => setImageQueryForForm(null)}
+                    stagedEmoji={stagedEmojiForForm}
+                    onClearStagedEmoji={handleClearStagedEmoji}
                 />
             </div>
         </DialogContent>
