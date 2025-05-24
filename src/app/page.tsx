@@ -8,6 +8,7 @@ import { TaskList } from '@/components/TaskList';
 import { TaskForm, type TaskFormData } from '@/components/TaskForm';
 import { TaskFilterControls, type FilterState } from '@/components/TaskFilterControls';
 import { AISuggestionsDialog } from '@/components/AISuggestionsDialog';
+import { TaskStatsDashboard } from '@/components/TaskStatsDashboard'; // Added import
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
@@ -72,6 +73,7 @@ const sampleTasks: Task[] = [
     tags: ['health', 'personal'],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    imageUrl: 'https://placehold.co/600x400.png',
   },
 ];
 
@@ -281,6 +283,7 @@ export default function HomePage() {
       <div className="min-h-screen flex flex-col">
         <Header onAddTask={() => handleOpenTaskForm()} />
         <main className="flex-grow container mx-auto px-4 py-12">
+          <TaskStatsDashboard tasks={tasks} /> {/* Added Dashboard */}
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
           <TaskList tasks={filteredTasks} onEditTask={handleOpenTaskForm} onDeleteTask={handleDeleteTask} onToggleSubtask={handleToggleSubtask}/>
         </main>
