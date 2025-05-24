@@ -42,6 +42,7 @@ const sampleTasks: Task[] = [
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
     updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(), // 1 day ago
     completed: false,
+    dataAiHint: 'groceries food',
   },
   {
     id: '2',
@@ -61,6 +62,7 @@ const sampleTasks: Task[] = [
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
     updatedAt: new Date().toISOString(),
     completed: false,
+    dataAiHint: 'business proposal',
   },
   {
     id: '3',
@@ -76,8 +78,9 @@ const sampleTasks: Task[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     imageUrl: 'https://placehold.co/600x400.png',
-    completed: true, // Example of a completed task
-    completedAt: new Date(Date.now() - 86400000 * 1).toISOString(), // Example completed yesterday
+    completed: true, 
+    completedAt: new Date(Date.now() - 86400000 * 1).toISOString(), 
+    dataAiHint: 'medical health',
   },
 ];
 
@@ -101,7 +104,7 @@ export default function HomePage() {
       try {
         const parsedTasks = JSON.parse(storedTasks);
         if (Array.isArray(parsedTasks) && parsedTasks.every(t => typeof t.id === 'string')) {
-          setTasks(parsedTasks.map(t => ({ ...t, completed: t.completed || false }))); // Ensure completed field exists
+          setTasks(parsedTasks.map(t => ({ ...t, completed: t.completed || false }))); 
         } else {
           setTasks(sampleTasks.map(t => ({ ...t, completed: t.completed || false })));
         }
@@ -148,7 +151,7 @@ export default function HomePage() {
         );
       }
     }
-    // Sort by creation date, then by completion status (incomplete tasks first)
+    
     setFilteredTasks(tempTasks.sort((a,b) => {
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
@@ -182,7 +185,7 @@ export default function HomePage() {
       imageUrl: data.imageUrl || undefined, 
     };
     
-    let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'>> = { ...taskData };
+    let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'| 'dataAiHint'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt' | 'dataAiHint'>> = { ...taskData };
         
     if (currentAiSuggestions) { 
         if (currentAiSuggestions.improvedDescription) {
@@ -247,24 +250,31 @@ export default function HomePage() {
   };
 
   const handleToggleTaskComplete = (taskId: string) => {
+    let taskTitleForToast = "";
+    let newCompletionStatus: boolean | undefined = undefined;
+
     setTasks(prevTasks =>
       prevTasks.map(task => {
         if (task.id === taskId) {
-          const isNowCompleted = !task.completed;
-          toast({
-            title: `Task ${isNowCompleted ? 'Completed' : 'Marked Incomplete'}`,
-            description: `"${task.title}" has been updated.`,
-          });
+          newCompletionStatus = !task.completed;
+          taskTitleForToast = task.title;
           return {
             ...task,
-            completed: isNowCompleted,
-            completedAt: isNowCompleted ? new Date().toISOString() : undefined,
+            completed: newCompletionStatus,
+            completedAt: newCompletionStatus ? new Date().toISOString() : undefined,
             updatedAt: new Date().toISOString(),
           };
         }
         return task;
       })
     );
+
+    if (taskTitleForToast && newCompletionStatus !== undefined) {
+      toast({
+        title: `Task ${newCompletionStatus ? 'Completed' : 'Marked Incomplete'}`,
+        description: `"${taskTitleForToast}" has been updated.`,
+      });
+    }
   };
   
   const handleGetAiSuggestions = async (aiInput: AiTaskFormInput) => {
@@ -314,7 +324,7 @@ export default function HomePage() {
             onEditTask={handleOpenTaskForm} 
             onDeleteTask={handleDeleteTask} 
             onToggleSubtask={handleToggleSubtask}
-            onToggleTaskComplete={handleToggleTaskComplete} // Pass new handler
+            onToggleTaskComplete={handleToggleTaskComplete} 
           />
         </main>
 
@@ -354,3 +364,4 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
+
