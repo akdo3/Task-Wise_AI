@@ -8,7 +8,7 @@ import { TaskList } from '@/components/TaskList';
 import { TaskForm, type TaskFormData } from '@/components/TaskForm';
 import { TaskFilterControls, type FilterState } from '@/components/TaskFilterControls';
 import { AISuggestionsDialog } from '@/components/AISuggestionsDialog';
-import { TaskStatsDashboard } from '@/components/TaskStatsDashboard'; // Added import
+import { TaskStatsDashboard } from '@/components/TaskStatsDashboard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +41,7 @@ const sampleTasks: Task[] = [
     imageUrl: 'https://placehold.co/600x400.png',
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
     updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(), // 1 day ago
+    completed: false,
   },
   {
     id: '2',
@@ -59,6 +60,7 @@ const sampleTasks: Task[] = [
     imageUrl: 'https://placehold.co/600x400.png',
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
     updatedAt: new Date().toISOString(),
+    completed: false,
   },
   {
     id: '3',
@@ -74,6 +76,8 @@ const sampleTasks: Task[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     imageUrl: 'https://placehold.co/600x400.png',
+    completed: true, // Example of a completed task
+    completedAt: new Date(Date.now() - 86400000 * 1).toISOString(), // Example completed yesterday
   },
 ];
 
@@ -97,16 +101,16 @@ export default function HomePage() {
       try {
         const parsedTasks = JSON.parse(storedTasks);
         if (Array.isArray(parsedTasks) && parsedTasks.every(t => typeof t.id === 'string')) {
-          setTasks(parsedTasks);
+          setTasks(parsedTasks.map(t => ({ ...t, completed: t.completed || false }))); // Ensure completed field exists
         } else {
-          setTasks(sampleTasks);
+          setTasks(sampleTasks.map(t => ({ ...t, completed: t.completed || false })));
         }
       } catch (e) {
         console.error("Failed to parse tasks from localStorage", e);
-        setTasks(sampleTasks);
+        setTasks(sampleTasks.map(t => ({ ...t, completed: t.completed || false })));
       }
     } else {
-      setTasks(sampleTasks);
+      setTasks(sampleTasks.map(t => ({ ...t, completed: t.completed || false })));
     }
   }, []);
 
@@ -144,7 +148,13 @@ export default function HomePage() {
         );
       }
     }
-    setFilteredTasks(tempTasks.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    // Sort by creation date, then by completion status (incomplete tasks first)
+    setFilteredTasks(tempTasks.sort((a,b) => {
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }));
   }, [tasks, filters]);
 
 
@@ -157,7 +167,7 @@ export default function HomePage() {
     setIsTaskFormOpen(false);
     setEditingTask(null);
     setTaskFormForAi(null); 
-    setCurrentAiSuggestions(null); // Clear AI suggestions when form closes
+    setCurrentAiSuggestions(null);
   };
 
   const handleTaskSubmit = (data: TaskFormData) => {
@@ -172,9 +182,8 @@ export default function HomePage() {
       imageUrl: data.imageUrl || undefined, 
     };
     
-    let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt'>> = { ...taskData };
-    
-    // Apply AI suggestions if they exist and were applied by the user
+    let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'>> = { ...taskData };
+        
     if (currentAiSuggestions) { 
         if (currentAiSuggestions.improvedDescription) {
             finalTaskData.description = currentAiSuggestions.improvedDescription;
@@ -188,7 +197,6 @@ export default function HomePage() {
             finalTaskData.subtasks = [...(finalTaskData.subtasks || []), ...newAiSubtasks];
         }
         if (currentAiSuggestions.suggestedEmoji && finalTaskData.title) {
-            // Avoid double-prepending emoji if title already starts with it
             if (!finalTaskData.title.startsWith(currentAiSuggestions.suggestedEmoji)) {
                  finalTaskData.title = `${currentAiSuggestions.suggestedEmoji} ${finalTaskData.title}`;
             }
@@ -202,12 +210,12 @@ export default function HomePage() {
     if (editingTask) {
       setTasks(
         tasks.map((t) =>
-          t.id === editingTask.id ? { ...t, ...finalTaskData, updatedAt: now } : t
+          t.id === editingTask.id ? { ...t, ...finalTaskData, updatedAt: now, completed: t.completed, completedAt: t.completedAt } : t
         )
       );
       toast({ title: "Task Updated", description: `"${finalTaskData.title}" has been updated.` });
     } else {
-      setTasks([{ ...finalTaskData, id: crypto.randomUUID(), createdAt: now, updatedAt: now } as Task, ...tasks]);
+      setTasks([{ ...finalTaskData, id: crypto.randomUUID(), createdAt: now, updatedAt: now, completed: false } as Task, ...tasks]);
       toast({ title: "Task Created", description: `"${finalTaskData.title}" has been added.` });
     }
     handleCloseTaskForm();
@@ -237,6 +245,27 @@ export default function HomePage() {
       )
     );
   };
+
+  const handleToggleTaskComplete = (taskId: string) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task => {
+        if (task.id === taskId) {
+          const isNowCompleted = !task.completed;
+          toast({
+            title: `Task ${isNowCompleted ? 'Completed' : 'Marked Incomplete'}`,
+            description: `"${task.title}" has been updated.`,
+          });
+          return {
+            ...task,
+            completed: isNowCompleted,
+            completedAt: isNowCompleted ? new Date().toISOString() : undefined,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return task;
+      })
+    );
+  };
   
   const handleGetAiSuggestions = async (aiInput: AiTaskFormInput) => {
     const result = await getAiTaskAssistance({
@@ -249,20 +278,16 @@ export default function HomePage() {
   };
   
   const handleOpenAiSuggestionsDialog = (suggestions: AiTaskAssistantOutput) => {
-    setCurrentAiSuggestions(suggestions); // Store all suggestions initially
+    setCurrentAiSuggestions(suggestions);
     setIsAiSuggestionsOpen(true);
   };
   
-  // This function is called by AISuggestionsDialog when user clicks "Use this..." or "Apply All"
   const handleApplyAiSuggestions = (appliedSuggestions: Partial<AiTaskAssistantOutput>) => {
-    // Merge the applied suggestions into the existing currentAiSuggestions
-    // This way, if a user applies description, then later emoji, both are stored.
     setCurrentAiSuggestions(prev => {
         const newSuggestions = {
-            ...(prev || { approachSuggestions: [], improvedDescription: '', generatedSubtasks: [] }), // Base for prev if null
-            ...appliedSuggestions // Overwrite with what was just applied
+            ...(prev || { approachSuggestions: [], improvedDescription: '', generatedSubtasks: [] }), 
+            ...appliedSuggestions 
         };
-        // Ensure arrays are handled correctly (not critical for emoji/tagline but good practice)
         if (appliedSuggestions.generatedSubtasks && prev?.generatedSubtasks) {
             newSuggestions.generatedSubtasks = [...prev.generatedSubtasks, ...appliedSuggestions.generatedSubtasks];
         }
@@ -273,7 +298,6 @@ export default function HomePage() {
       title: "AI Suggestion Queued",
       description: "The suggestion has been noted. Save the task to apply it.",
     });
-     // Keep the task form open, but close the AI suggestions dialog
      setIsAiSuggestionsOpen(false);
   };
 
@@ -283,9 +307,15 @@ export default function HomePage() {
       <div className="min-h-screen flex flex-col">
         <Header onAddTask={() => handleOpenTaskForm()} />
         <main className="flex-grow container mx-auto px-4 py-12">
-          <TaskStatsDashboard tasks={tasks} /> {/* Added Dashboard */}
+          <TaskStatsDashboard tasks={tasks} />
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
-          <TaskList tasks={filteredTasks} onEditTask={handleOpenTaskForm} onDeleteTask={handleDeleteTask} onToggleSubtask={handleToggleSubtask}/>
+          <TaskList 
+            tasks={filteredTasks} 
+            onEditTask={handleOpenTaskForm} 
+            onDeleteTask={handleDeleteTask} 
+            onToggleSubtask={handleToggleSubtask}
+            onToggleTaskComplete={handleToggleTaskComplete} // Pass new handler
+          />
         </main>
 
         <Dialog open={isTaskFormOpen} onOpenChange={(isOpen) => { if(!isOpen) handleCloseTaskForm(); else setIsTaskFormOpen(true);}}>
@@ -312,8 +342,8 @@ export default function HomePage() {
           <AISuggestionsDialog
               isOpen={isAiSuggestionsOpen}
               onClose={() => setIsAiSuggestionsOpen(false)}
-              suggestions={currentAiSuggestions} // Pass all initially fetched suggestions
-              onApplySuggestions={handleApplyAiSuggestions} // This will now merge selected parts
+              suggestions={currentAiSuggestions}
+              onApplySuggestions={handleApplyAiSuggestions}
           />
         )}
 
@@ -324,4 +354,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-

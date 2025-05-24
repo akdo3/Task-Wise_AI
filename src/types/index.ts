@@ -12,7 +12,7 @@ export interface Task {
   title: string;
   description: string; // Made non-optional for consistency, can be empty string
   subtasks: Subtask[];
-  imageUrl?: string; // Restored image URL
+  imageUrl?: string;
   priority: Priority;
   dueDate?: string; // YYYY-MM-DD
   reminderDate?: string; // YYYY-MM-DD
@@ -23,6 +23,8 @@ export interface Task {
   aiApproachSuggestions?: string[];
   aiImprovedDescription?: string;
   aiGeneratedSubtasks?: string[];
+  completed: boolean; // Added for task completion
+  completedAt?: string; // Added for task completion timestamp
 }
 
 // Directly use AiTaskAssistantInput and AiTaskAssistantOutput from the AI flow if possible
@@ -34,5 +36,6 @@ export interface AiTaskFormInput {
   dueDate: string; // Needs to be string for AI
   reminder: string; // Needs to be string for AI
   tags: string[];
-  imageUrl?: string; // Changed from image: undefined
+  imageUrl?: string;
 }
+

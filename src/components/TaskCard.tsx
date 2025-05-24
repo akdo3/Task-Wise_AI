@@ -2,14 +2,14 @@
 "use client";
 
 import type { FC } from 'react';
-import Image from 'next/image'; // Import next/image
+import Image from 'next/image';
 import type { Task, Priority } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle, GripVertical } from 'lucide-react';
+import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
@@ -17,6 +17,7 @@ interface TaskCardProps {
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
+  onToggleComplete: (taskId: string) => void; // New prop
 }
 
 const priorityBadgeClassConfig: Record<Priority, { bg: string; text: string; border: string }> = {
@@ -44,7 +45,7 @@ const priorityCardBgClasses: Record<Priority, string> = {
 };
 
 
-export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSubtask }) => {
+export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSubtask, onToggleComplete }) => {
   const completedSubtasks = task.subtasks.filter(st => st.completed).length;
   const totalSubtasks = task.subtasks.length;
   const badgeClasses = priorityBadgeClassConfig[task.priority];
@@ -53,10 +54,11 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
   return (
     <Card className={cn(
       "animate-fade-in-up shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out flex flex-col h-full text-card-foreground rounded-[var(--radius)] border hover:border-[hsl(var(--primary))]",
-      cardBgClass
+      cardBgClass,
+      task.completed && "opacity-60 dark:opacity-50 bg-muted/30 dark:bg-muted/20 hover:opacity-100" // Style for completed tasks
       )}>
       {task.imageUrl && (
-        <div className="relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden">
+        <div className={cn("relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden", task.completed && "grayscale")}>
           <Image
             src={task.imageUrl}
             alt={`Image for ${task.title}`}
@@ -68,57 +70,64 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
       )}
       <CardHeader className={cn("pb-3", task.imageUrl ? "pt-4" : "pt-6")}>
         <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-semibold leading-tight">{task.title}</CardTitle>
+          <CardTitle className={cn("text-lg font-semibold leading-tight", task.completed && "line-through text-muted-foreground")}>{task.title}</CardTitle>
           <Badge 
             variant="outline"
             className={cn(
               "capitalize text-xs px-2 py-0.5 font-medium",
               badgeClasses.bg,
               badgeClasses.text,
-              badgeClasses.border
+              badgeClasses.border,
+              task.completed && "border-transparent bg-muted text-muted-foreground"
             )}
           >
             {task.priority}
           </Badge>
         </div>
         {task.description && (
-          <CardDescription className="text-sm text-muted-foreground line-clamp-3 pt-1">{task.description}</CardDescription>
+          <CardDescription className={cn("text-sm text-muted-foreground line-clamp-3 pt-1", task.completed && "line-through")}>{task.description}</CardDescription>
         )}
       </CardHeader>
       <CardContent className="flex-grow space-y-2.5 text-sm">
+        {task.completed && task.completedAt && (
+          <div className="flex items-center text-accent dark:text-accent/90 font-medium">
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Completed: {format(parseISO(task.completedAt), 'MMM d, yyyy')}
+          </div>
+        )}
         {task.dueDate && (
-          <div className="flex items-center text-muted-foreground">
+          <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through")}>
             <CalendarDays className="h-3.5 w-3.5 mr-2" />
             Due: {format(new Date(task.dueDate), 'MMM d, yyyy')}
           </div>
         )}
         {task.reminderDate && (
-          <div className="flex items-center text-muted-foreground">
+          <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through")}>
             <Repeat className="h-3.5 w-3.5 mr-2" />
             Reminder: {format(new Date(task.reminderDate), 'MMM d, yyyy')}
           </div>
         )}
         {task.delegatedTo && (
-          <div className="flex items-center text-muted-foreground">
+          <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through")}>
             <UserCheck className="h-3.5 w-3.5 mr-2" />
             Delegated to: {task.delegatedTo}
           </div>
         )}
         {task.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
+          <div className={cn("flex flex-wrap gap-1.5 pt-1", task.completed && "opacity-70")}>
             {task.tags.map((tag) => (
               <Badge key={tag} variant="secondary" className="text-xs px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground">{tag}</Badge>
             ))}
           </div>
         )}
         {task.subtasks.length > 0 && (
-           <div className="pt-2">
+           <div className={cn("pt-2", task.completed && "opacity-70")}>
              <h4 className="text-xs font-medium text-muted-foreground mb-1.5">SUBTASKS ({completedSubtasks}/{totalSubtasks})</h4>
              <ul className="space-y-1 max-h-28 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent pr-1">
                {task.subtasks.map(subtask => (
-                 <li key={subtask.id} className="flex items-center text-sm cursor-pointer hover:bg-muted/50 p-1.5 rounded-md" onClick={() => onToggleSubtask(task.id, subtask.id)}>
+                 <li key={subtask.id} className="flex items-center text-sm cursor-pointer hover:bg-muted/50 p-1.5 rounded-md" onClick={() => !task.completed && onToggleSubtask(task.id, subtask.id)}>
                    {subtask.completed ? <CheckCircle className="h-4 w-4 mr-2 text-accent flex-shrink-0" /> : <Circle className="h-4 w-4 mr-2 text-muted-foreground/50 flex-shrink-0" />}
-                   <span className={cn("truncate", subtask.completed ? 'line-through text-muted-foreground' : 'text-foreground')}>{subtask.text}</span>
+                   <span className={cn("truncate", subtask.completed ? 'line-through text-muted-foreground' : 'text-foreground', task.completed && subtask.completed && 'text-muted-foreground', task.completed && !subtask.completed && 'text-foreground/70')}>{subtask.text}</span>
                  </li>
                ))}
              </ul>
@@ -128,12 +137,29 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
       <CardFooter className="flex justify-end gap-1 border-t pt-3 mt-auto">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={() => onEdit(task)} className="text-muted-foreground hover:text-primary">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onToggleComplete(task.id)}
+              className={cn(
+                "text-muted-foreground",
+                task.completed ? "hover:text-yellow-500 dark:hover:text-yellow-400" : "hover:text-green-500 dark:hover:text-green-400"
+              )}
+            >
+              {task.completed ? <Circle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
+              <span className="sr-only">{task.completed ? 'Mark as Incomplete' : 'Mark as Complete'}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{task.completed ? 'Mark as Incomplete' : 'Mark as Complete'}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(task)} className="text-muted-foreground hover:text-primary" disabled={task.completed}>
               <Edit3 className="h-4 w-4" />
               <span className="sr-only">Edit Task</span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Edit Task</TooltipContent>
+          <TooltipContent>Edit Task {task.completed && "(Mark incomplete to edit)"}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>

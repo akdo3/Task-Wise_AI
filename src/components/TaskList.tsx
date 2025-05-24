@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -9,9 +10,16 @@ interface TaskListProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
+  onToggleTaskComplete: (taskId: string) => void; // New prop
 }
 
-export const TaskList: FC<TaskListProps> = ({ tasks, onEditTask, onDeleteTask, onToggleSubtask }) => {
+export const TaskList: FC<TaskListProps> = ({ 
+  tasks, 
+  onEditTask, 
+  onDeleteTask, 
+  onToggleSubtask,
+  onToggleTaskComplete, // Destructure new prop
+}) => {
   if (tasks.length === 0) {
     return (
       <div className="text-center py-10">
@@ -30,6 +38,7 @@ export const TaskList: FC<TaskListProps> = ({ tasks, onEditTask, onDeleteTask, o
           onEdit={onEditTask} 
           onDelete={onDeleteTask}
           onToggleSubtask={onToggleSubtask}
+          onToggleComplete={onToggleTaskComplete} // Pass new prop
         />
       ))}
     </div>
