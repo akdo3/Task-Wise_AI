@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,12 +10,14 @@ import { TaskFilterControls, type FilterState } from '@/components/TaskFilterCon
 import { AISuggestionsDialog, type AISuggestionsDialogCommonProps } from '@/components/AISuggestionsDialog';
 import { TaskStatsDashboard } from '@/components/TaskStatsDashboard';
 import { DailyMotivation } from '@/components/DailyMotivation';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { SettingsDialog } from '@/components/SettingsDialog'; // Added import
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'; // Ensure DialogFooter is here
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { getAiTaskAssistance, getDailyMotivationalTip, reviewTaskImage as reviewTaskImageAction, generateImageForTask as generateImageAction, suggestRandomTask as suggestRandomTaskAction } from "@/lib/actions";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
 import type { ReviewTaskImageOutput, ReviewTaskImageInput } from "@/ai/flows/review-task-image-flow";
+import { Button } from '@/components/ui/button'; // Added import for Button used in DialogFooter
 import { format } from 'date-fns';
 
 const initialFilters: FilterState = {
@@ -104,6 +107,8 @@ export default function HomePage() {
   const [taskOfTheDayId, setTaskOfTheDayId] = useState<string | null>(null);
   const [dailyMotivation, setDailyMotivation] = useState<{ quote: string; date: string } | null>(null);
   const [isLoadingMotivation, setIsLoadingMotivation] = useState(false);
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false);
 
 
   useEffect(() => {
@@ -162,58 +167,57 @@ export default function HomePage() {
     applyFilters();
     
     const incompleteTasks = tasks.filter((t) => !t.completed);
-    if (incompleteTasks.length === 0) {
-      setTaskOfTheDayId(null);
-      localStorage.removeItem('taskOfTheDay');
-      return;
+    let currentFocusTaskId: string | null = taskOfTheDayId; 
+
+    if(taskOfTheDayId){
+        const focusTaskStillExistsAndValid = incompleteTasks.find(t => t.id === taskOfTheDayId);
+        if(!focusTaskStillExistsAndValid){ 
+            currentFocusTaskId = null; 
+            localStorage.removeItem('taskOfTheDay');
+        }
     }
 
-    const today = new Date().toDateString();
-    const storedTaskOfTheDayString = localStorage.getItem('taskOfTheDay');
-    let currentFocusTaskId: string | null = null;
+    if (!currentFocusTaskId) { 
+        const today = new Date().toDateString();
+        const storedTaskOfTheDayString = localStorage.getItem('taskOfTheDay');
 
-    if (storedTaskOfTheDayString) {
-      try {
-        const storedTaskOfTheDay: { id: string; date: string } = JSON.parse(storedTaskOfTheDayString);
-        const taskStillExistsAndValid = tasks.find(
-          (t) => t.id === storedTaskOfTheDay.id && !t.completed // Focus task must be incomplete
-        );
-        if (storedTaskOfTheDay.date === today && taskStillExistsAndValid) {
-          currentFocusTaskId = storedTaskOfTheDay.id;
-        } else {
-          // Stored task is either completed, deleted, or for a previous day
-          localStorage.removeItem('taskOfTheDay'); 
-        }
-      } catch (e) {
-        console.error("Error parsing task of the day from localStorage", e);
-        localStorage.removeItem('taskOfTheDay');
-      }
-    }
-
-    if (!currentFocusTaskId) { // No valid focus task from storage, or it was cleared
-        let candidates = incompleteTasks.filter(t => t.priority === 'high');
-        if (candidates.length === 0) {
-          candidates = incompleteTasks.filter(t => t.priority === 'medium');
-        }
-        if (candidates.length === 0) {
-          candidates = incompleteTasks.filter(t => t.priority === 'low');
-        }
-        if (candidates.length === 0) { 
-            candidates = incompleteTasks;
+        if (storedTaskOfTheDayString) {
+            try {
+                const storedTaskOfTheDay: { id: string; date: string } = JSON.parse(storedTaskOfTheDayString);
+                const taskStillExistsAndValid = incompleteTasks.find(t => t.id === storedTaskOfTheDay.id);
+                if (storedTaskOfTheDay.date === today && taskStillExistsAndValid) {
+                    currentFocusTaskId = storedTaskOfTheDay.id;
+                } else {
+                    localStorage.removeItem('taskOfTheDay'); 
+                }
+            } catch (e) {
+                console.error("Error parsing task of the day from localStorage", e);
+                localStorage.removeItem('taskOfTheDay');
+            }
         }
         
-        if (candidates.length > 0) {
-            const randomIndex = Math.floor(Math.random() * candidates.length);
-            currentFocusTaskId = candidates[randomIndex].id;
-            localStorage.setItem(
-              'taskOfTheDay',
-              JSON.stringify({ id: currentFocusTaskId, date: today })
-            );
+        if (!currentFocusTaskId && incompleteTasks.length > 0) {
+            let candidates = incompleteTasks.filter(t => t.priority === 'high');
+            if (candidates.length === 0) candidates = incompleteTasks.filter(t => t.priority === 'medium');
+            if (candidates.length === 0) candidates = incompleteTasks; 
+            
+            if (candidates.length > 0) {
+                const randomIndex = Math.floor(Math.random() * candidates.length);
+                currentFocusTaskId = candidates[randomIndex].id;
+                localStorage.setItem('taskOfTheDay', JSON.stringify({ id: currentFocusTaskId, date: today }));
+            }
         }
     }
+    
+    if (incompleteTasks.length === 0) { 
+        currentFocusTaskId = null;
+        localStorage.removeItem('taskOfTheDay');
+    }
+
     setTaskOfTheDayId(currentFocusTaskId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]); 
+
 
   const applyFilters = useCallback(() => {
     let tempTasks = [...tasks];
@@ -263,7 +267,7 @@ export default function HomePage() {
     if (task) {
         const titleParts = task.title.split(" ");
         const firstPart = titleParts[0];
-        if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { 
+        if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) {
             setStagedEmojiForForm(firstPart);
         }
     }
@@ -324,7 +328,7 @@ export default function HomePage() {
     if (editingTask) {
       let updatedDataAiHint: string | undefined = editingTask.dataAiHint;
 
-      if (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) {
+      if (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co') && !finalTaskData.imageUrl.startsWith('data:')) {
         updatedDataAiHint = undefined; 
       } 
       else if (!finalTaskData.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
@@ -404,8 +408,8 @@ export default function HomePage() {
     let taskTitleForToast = "";
     let newCompletionStatus: boolean | undefined = undefined;
 
-    setTasks(prevTasks =>
-      prevTasks.map(task => {
+    setTasks(prevTasks => {
+      const updatedTasks = prevTasks.map(task => {
         if (task.id === taskId) {
           newCompletionStatus = !task.completed;
           taskTitleForToast = task.title;
@@ -417,8 +421,9 @@ export default function HomePage() {
           };
         }
         return task;
-      })
-    );
+      });
+      return updatedTasks;
+    });
 
     if (taskTitleForToast && newCompletionStatus !== undefined) {
       toast({
@@ -478,6 +483,9 @@ export default function HomePage() {
   const handleApplyAiSuggestions = (appliedSuggestions: Partial<AiTaskAssistantOutput & { imageReviewFeedback?: string }>) => {
     setStagedAiSuggestionsForSave(prevStaged => {
         const updatedStaged = { ...prevStaged, ...appliedSuggestions };
+        if (appliedSuggestions.hasOwnProperty('generatedSubtasks') && Array.isArray(appliedSuggestions.generatedSubtasks) && appliedSuggestions.generatedSubtasks.length === 0) {
+            updatedStaged.generatedSubtasks = [];
+        }
         return updatedStaged;
     });
 
@@ -490,26 +498,27 @@ export default function HomePage() {
 
     let stagedItemDescription = "AI suggestion(s) have been noted";
     const keysStaged = Object.keys(appliedSuggestions);
+    const relevantKeys = keysStaged.filter(key => key !== 'imageReviewFeedback' && appliedSuggestions[key as keyof typeof appliedSuggestions] !== undefined);
 
-    if (keysStaged.length === 1) {
-        if (keysStaged.includes('improvedDescription')) stagedItemDescription = "Description staged";
-        else if (keysStaged.includes('generatedSubtasks')) stagedItemDescription = "Selected subtasks staged";
-        else if (keysStaged.includes('suggestedEmoji')) stagedItemDescription = "Emoji staged";
-        else if (keysStaged.includes('suggestedTagline')) stagedItemDescription = "Tagline staged";
-        else if (keysStaged.includes('suggestedImageQuery')) stagedItemDescription = "Image query staged";
-        else if (keysStaged.includes('suggestedTaskVibe')) stagedItemDescription = "Task vibe staged";
-    } else if (keysStaged.length > 1) {
+
+    if (relevantKeys.length === 1) {
+        const key = relevantKeys[0];
+        if (key === 'improvedDescription') stagedItemDescription = "Description staged";
+        else if (key === 'generatedSubtasks') stagedItemDescription = "Selected subtasks staged";
+        else if (key === 'suggestedEmoji') stagedItemDescription = "Emoji staged";
+        else if (key === 'suggestedTagline') stagedItemDescription = "Tagline staged";
+        else if (key === 'suggestedImageQuery') stagedItemDescription = "Image query staged";
+        else if (key === 'suggestedTaskVibe') stagedItemDescription = "Task vibe staged";
+    } else if (relevantKeys.length > 1) {
         stagedItemDescription = "Multiple AI suggestions staged";
     }
-
-    // Only show toast if something was actually staged to the form, not just for image review feedback
-    if (keysStaged.some(key => key !== 'imageReviewFeedback')) {
+    
+    if (relevantKeys.length > 0 || (appliedSuggestions.hasOwnProperty('generatedSubtasks') && Array.isArray(appliedSuggestions.generatedSubtasks) && appliedSuggestions.generatedSubtasks.length === 0) ) {
       toast({
         title: "AI Suggestion Staged",
         description: `${stagedItemDescription}. Save the task to apply it, or use staged elements like the image query directly.`,
       });
     }
-    // Do not close the dialog here; the dialog component itself will handle its closure.
   };
 
   const handleClearStagedEmoji = () => {
@@ -539,10 +548,14 @@ export default function HomePage() {
   return (
     <TooltipProvider delayDuration={100}>
       <div className="flex flex-col min-h-screen bg-background scrollbar-thin">
-        <Header onAddTask={() => handleOpenTaskForm()} />
+        <Header 
+            onAddTask={() => handleOpenTaskForm()} 
+            onOpenSettings={() => setIsSettingsDialogOpen(true)}
+            onOpenStats={() => setIsStatsDialogOpen(true)}
+        />
         <main className="flex-grow container mx-auto px-4 py-12">
-          <TaskStatsDashboard tasks={tasks} />
           <DailyMotivation motivation={dailyMotivation} isLoading={isLoadingMotivation} />
+          <TaskStatsDashboard tasks={tasks} />
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
           <TaskList
             tasks={filteredTasks}
@@ -593,6 +606,29 @@ export default function HomePage() {
             onApplySuggestions={handleApplyAiSuggestions}
         />
       )}
+
+      <SettingsDialog 
+        isOpen={isSettingsDialogOpen}
+        onClose={() => setIsSettingsDialogOpen(false)}
+      />
+
+      <Dialog open={isStatsDialogOpen} onOpenChange={setIsStatsDialogOpen}>
+        <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[80vh] flex flex-col rounded-[var(--radius)]">
+            <DialogHeader>
+                <DialogTitle className="text-xl">Task Statistics</DialogTitle>
+                <DialogDescription>
+                    An overview of your current tasks.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="overflow-y-auto flex-grow py-4 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                <TaskStatsDashboard tasks={tasks} />
+            </div>
+             <DialogFooter className="pt-4">
+                <Button onClick={() => setIsStatsDialogOpen(false)} variant="outline">Close</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </TooltipProvider>
   );
 }

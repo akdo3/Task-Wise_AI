@@ -51,5 +51,10 @@ export function useTheme() {
     applyTheme(theme === 'light' ? 'dark' : 'light');
   };
 
-  return { theme, toggleTheme };
+  const setSpecificTheme = (newTheme: Theme) => {
+    applyTheme(newTheme);
+  };
+
+  return { theme, toggleTheme, setSpecificTheme };
 }
+
