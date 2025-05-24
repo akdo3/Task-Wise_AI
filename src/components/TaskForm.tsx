@@ -20,10 +20,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon } from 'lucide-react'; // Added ImageIcon
+import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon, Wand2 } from 'lucide-react';
 import type { Task, Subtask, Priority, AiTaskFormInput } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
+import { generateImageForTask as generateImageAction } from '@/lib/actions'; // Renamed for clarity
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
@@ -38,7 +39,7 @@ const taskFormSchema = z.object({
     completed: z.boolean() 
   })).max(10, 'Maximum 10 subtasks').optional(),
   delegatedTo: z.string().max(50, 'Delegatee name is too long').optional(),
-  imageUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')), // Restored imageUrl field
+  imageUrl: z.string().url({ message: "Please enter a valid URL or data URI." }).optional().or(z.literal('')),
 });
 
 export type TaskFormData = z.infer<typeof taskFormSchema>;
@@ -55,6 +56,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
   const { toast } = useToast();
   const [currentTag, setCurrentTag] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isImageGenerating, setIsImageGenerating] = useState(false);
 
   const {
     control,
@@ -63,6 +65,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
     reset,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<TaskFormData>({
     resolver: zodResolver(taskFormSchema),
@@ -154,6 +157,39 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
         variant: "destructive",
         title: "AI Assistance Error",
         description: suggestions.error,
+      });
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    const currentTitle = getValues('title');
+    const currentDescription = getValues('description');
+
+    if (!currentTitle) {
+      toast({
+        variant: "destructive",
+        title: "Title Required",
+        description: "Please enter a task title to generate an image.",
+      });
+      return;
+    }
+
+    setIsImageGenerating(true);
+    const result = await generateImageAction({ taskTitle: currentTitle, taskDescription: currentDescription });
+    setIsImageGenerating(false);
+
+    if (result && !('error' in result) && result.imageDataUri) {
+      setValue('imageUrl', result.imageDataUri, { shouldValidate: true });
+      toast({
+        title: "Image Generated",
+        description: "AI has generated an image for your task.",
+      });
+    } else {
+      const errorMessage = (result && 'error' in result) ? result.error : "Failed to generate image."
+      toast({
+        variant: "destructive",
+        title: "Image Generation Error",
+        description: errorMessage,
       });
     }
   };
@@ -324,17 +360,23 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
       
       <div>
         <Label htmlFor="imageUrl" className="text-sm font-medium">Image URL (Optional)</Label>
-        <div className="relative mt-1.5">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-2 mt-1.5">
+            <div className="relative flex-grow">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <Input 
+                    id="imageUrl" 
+                    {...register('imageUrl')} 
+                    placeholder="https://example.com/image.png or generate one" 
+                    className="pl-10"
+                    aria-invalid={errors.imageUrl ? "true" : "false"}
+                />
             </div>
-            <Input 
-                id="imageUrl" 
-                {...register('imageUrl')} 
-                placeholder="https://example.com/image.png" 
-                className="pl-10"
-                aria-invalid={errors.imageUrl ? "true" : "false"}
-            />
+            <Button type="button" variant="outline" onClick={handleGenerateImage} disabled={isImageGenerating} className="shrink-0">
+                <Wand2 className="mr-2 h-4 w-4" />
+                {isImageGenerating ? 'Generating...' : 'Generate'}
+            </Button>
         </div>
         {errors.imageUrl && <p className="text-xs text-destructive mt-1.5">{errors.imageUrl.message}</p>}
       </div>
