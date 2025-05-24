@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -36,16 +37,30 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
   };
 
   const handleApplySubtasks = () => {
-    // This assumes you want to add all generated subtasks.
-    // A more complex UI would allow selecting specific subtasks.
     onApplySuggestions({ generatedSubtasks: suggestions.generatedSubtasks });
     onClose();
   };
   
+  const handleApplyEmoji = () => {
+    if (suggestions.suggestedEmoji) {
+      onApplySuggestions({ suggestedEmoji: suggestions.suggestedEmoji });
+      onClose(); // Or keep open if user might apply more
+    }
+  };
+
+  const handleApplyTagline = () => {
+    if (suggestions.suggestedTagline) {
+      onApplySuggestions({ suggestedTagline: suggestions.suggestedTagline });
+      onClose(); // Or keep open
+    }
+  };
+
   const handleApplyAll = () => {
     onApplySuggestions({
       improvedDescription: suggestions.improvedDescription,
       generatedSubtasks: suggestions.generatedSubtasks,
+      suggestedEmoji: suggestions.suggestedEmoji,
+      suggestedTagline: suggestions.suggestedTagline,
       // approachSuggestions are for viewing, not direct application to form fields
     });
     onClose();
@@ -57,12 +72,22 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
         <DialogHeader>
           <DialogTitle>AI Task Suggestions</DialogTitle>
           <DialogDescription>
-            Review the suggestions from AI to enhance your task.
+            Review the suggestions from AI to enhance your task. Click "Apply All Applicable" or choose specific suggestions.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[60vh] p-4 border rounded-md">
+        <ScrollArea className="max-h-[60vh] p-4 border rounded-md space-y-6">
+          {suggestions.suggestedEmoji && (
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Suggested Emoji:</h3>
+              <div className="flex items-center gap-3 bg-muted p-3 rounded-md">
+                <span className="text-3xl">{suggestions.suggestedEmoji}</span>
+                <Button onClick={handleApplyEmoji} size="sm">Use this Emoji</Button>
+              </div>
+            </div>
+          )}
+
           {suggestions.improvedDescription && (
-            <div className="mb-6">
+            <div>
               <h3 className="text-lg font-semibold mb-2">Improved Description:</h3>
               <p className="text-sm bg-muted p-3 rounded-md whitespace-pre-wrap">
                 {suggestions.improvedDescription}
@@ -70,9 +95,20 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
               <Button onClick={handleApplyDescription} size="sm" className="mt-2">Use this Description</Button>
             </div>
           )}
+          
+          {suggestions.suggestedTagline && (
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Suggested Tagline:</h3>
+              <p className="text-sm bg-muted p-3 rounded-md italic">
+                "{suggestions.suggestedTagline}"
+              </p>
+              <Button onClick={handleApplyTagline} size="sm" className="mt-2">Use this Tagline</Button>
+            </div>
+          )}
+
 
           {suggestions.generatedSubtasks && suggestions.generatedSubtasks.length > 0 && (
-            <div className="mb-6">
+            <div>
               <h3 className="text-lg font-semibold mb-2">Generated Subtasks:</h3>
               <ul className="space-y-2">
                 {suggestions.generatedSubtasks.map((subtask, index) => (
@@ -86,7 +122,7 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
           )}
 
           {suggestions.approachSuggestions && suggestions.approachSuggestions.length > 0 && (
-            <div className="mb-6">
+            <div>
               <h3 className="text-lg font-semibold mb-2">Approach Suggestions:</h3>
               <ul className="list-disc list-inside space-y-1 pl-4">
                 {suggestions.approachSuggestions.map((approach, index) => (
@@ -96,7 +132,7 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
             </div>
           )}
         </ScrollArea>
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="gap-2 sm:justify-between pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
           <Button onClick={handleApplyAll} className="bg-accent hover:bg-accent/90 text-accent-foreground">Apply All Applicable</Button>
         </DialogFooter>

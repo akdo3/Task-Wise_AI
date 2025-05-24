@@ -25,8 +25,8 @@ const initialFilters: FilterState = {
 const sampleTasks: Task[] = [
   {
     id: '1',
-    title: 'Grocery Shopping',
-    description: 'Buy groceries for the week. Focus on fresh vegetables and fruits. Need to get items for the weekend party as well.',
+    title: '🛒 Grocery Shopping',
+    description: 'Buy groceries for the week. Focus on fresh vegetables and fruits. Need to get items for the weekend party as well.\n\n"Fueling up for a fantastic week!"',
     subtasks: [
       { id: 's1-1', text: 'Buy apples and bananas', completed: true },
       { id: 's1-2', text: 'Buy milk (2 gallons)', completed: false },
@@ -43,8 +43,8 @@ const sampleTasks: Task[] = [
   },
   {
     id: '2',
-    title: 'Project Proposal Finalization',
-    description: 'Draft and finalize the project proposal for Q4. Must include detailed market analysis, competitor research, and realistic financial projections. Circulate to stakeholders by EOD.',
+    title: '🚀 Project Proposal Finalization',
+    description: 'Draft and finalize the project proposal for Q4. Must include detailed market analysis, competitor research, and realistic financial projections. Circulate to stakeholders by EOD.\n\n"Launching the next big thing!"',
     subtasks: [
       { id: 's2-1', text: 'Market research & competitor analysis', completed: true },
       { id: 's2-2', text: 'Draft initial proposal sections', completed: true },
@@ -70,7 +70,6 @@ const sampleTasks: Task[] = [
     priority: 'low',
     dueDate: '2024-09-10',
     tags: ['health', 'personal'],
-    // No imageUrl for this one to test conditional rendering
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -156,6 +155,7 @@ export default function HomePage() {
     setIsTaskFormOpen(false);
     setEditingTask(null);
     setTaskFormForAi(null); 
+    setCurrentAiSuggestions(null); // Clear AI suggestions when form closes
   };
 
   const handleTaskSubmit = (data: TaskFormData) => {
@@ -172,7 +172,8 @@ export default function HomePage() {
     
     let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt'>> = { ...taskData };
     
-    if (taskFormForAi && currentAiSuggestions) { 
+    // Apply AI suggestions if they exist and were applied by the user
+    if (currentAiSuggestions) { 
         if (currentAiSuggestions.improvedDescription) {
             finalTaskData.description = currentAiSuggestions.improvedDescription;
         }
@@ -183,6 +184,15 @@ export default function HomePage() {
                 completed: false,
             }));
             finalTaskData.subtasks = [...(finalTaskData.subtasks || []), ...newAiSubtasks];
+        }
+        if (currentAiSuggestions.suggestedEmoji && finalTaskData.title) {
+            // Avoid double-prepending emoji if title already starts with it
+            if (!finalTaskData.title.startsWith(currentAiSuggestions.suggestedEmoji)) {
+                 finalTaskData.title = `${currentAiSuggestions.suggestedEmoji} ${finalTaskData.title}`;
+            }
+        }
+        if (currentAiSuggestions.suggestedTagline && finalTaskData.description !== undefined) {
+            finalTaskData.description = `${finalTaskData.description}\n\n"${currentAiSuggestions.suggestedTagline}"`;
         }
     }
 
@@ -199,7 +209,6 @@ export default function HomePage() {
       toast({ title: "Task Created", description: `"${finalTaskData.title}" has been added.` });
     }
     handleCloseTaskForm();
-    setCurrentAiSuggestions(null);
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -228,7 +237,6 @@ export default function HomePage() {
   };
   
   const handleGetAiSuggestions = async (aiInput: AiTaskFormInput) => {
-    // Ensure imageUrl is passed correctly
     const result = await getAiTaskAssistance({
         ...aiInput,
         dueDate: aiInput.dueDate || "", 
@@ -239,22 +247,32 @@ export default function HomePage() {
   };
   
   const handleOpenAiSuggestionsDialog = (suggestions: AiTaskAssistantOutput) => {
-    setCurrentAiSuggestions(suggestions);
+    setCurrentAiSuggestions(suggestions); // Store all suggestions initially
     setIsAiSuggestionsOpen(true);
   };
   
+  // This function is called by AISuggestionsDialog when user clicks "Use this..." or "Apply All"
   const handleApplyAiSuggestions = (appliedSuggestions: Partial<AiTaskAssistantOutput>) => {
-     if (!editingTask && !isTaskFormOpen) return;
-    
-    setCurrentAiSuggestions(prev => ({
-        ...(prev || { approachSuggestions: [], improvedDescription: '', generatedSubtasks: [] }),
-        ...appliedSuggestions
-    }));
+    // Merge the applied suggestions into the existing currentAiSuggestions
+    // This way, if a user applies description, then later emoji, both are stored.
+    setCurrentAiSuggestions(prev => {
+        const newSuggestions = {
+            ...(prev || { approachSuggestions: [], improvedDescription: '', generatedSubtasks: [] }), // Base for prev if null
+            ...appliedSuggestions // Overwrite with what was just applied
+        };
+        // Ensure arrays are handled correctly (not critical for emoji/tagline but good practice)
+        if (appliedSuggestions.generatedSubtasks && prev?.generatedSubtasks) {
+            newSuggestions.generatedSubtasks = [...prev.generatedSubtasks, ...appliedSuggestions.generatedSubtasks];
+        }
+        return newSuggestions;
+    });
 
      toast({
-      title: "AI Suggestions Ready",
-      description: "Review and save the task to apply AI enhancements.",
+      title: "AI Suggestion Queued",
+      description: "The suggestion has been noted. Save the task to apply it.",
     });
+     // Keep the task form open, but close the AI suggestions dialog
+     setIsAiSuggestionsOpen(false);
   };
 
 
@@ -262,20 +280,20 @@ export default function HomePage() {
     <TooltipProvider delayDuration={100}>
       <div className="min-h-screen flex flex-col">
         <Header onAddTask={() => handleOpenTaskForm()} />
-        <main className="flex-grow container mx-auto px-4 py-12"> {/* Increased py */}
+        <main className="flex-grow container mx-auto px-4 py-12">
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
           <TaskList tasks={filteredTasks} onEditTask={handleOpenTaskForm} onDeleteTask={handleDeleteTask} onToggleSubtask={handleToggleSubtask}/>
         </main>
 
         <Dialog open={isTaskFormOpen} onOpenChange={(isOpen) => { if(!isOpen) handleCloseTaskForm(); else setIsTaskFormOpen(true);}}>
-          <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col rounded-[var(--radius)]"> {/* Wider dialog */}
+          <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col rounded-[var(--radius)]">
               <DialogHeader className="pb-4">
                 <DialogTitle className="text-2xl">{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
                 <DialogDescription>
                   {editingTask ? 'Update the details of your task.' : 'Fill in the details for your new task.'}
                 </DialogDescription>
               </DialogHeader>
-              <div className="overflow-y-auto flex-grow pr-3 mr-[-6px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"> {/* Adjusted scrollbar padding */}
+              <div className="overflow-y-auto flex-grow pr-3 mr-[-6px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
                   <TaskForm
                       task={editingTask}
                       onSubmit={handleTaskSubmit}
@@ -291,8 +309,8 @@ export default function HomePage() {
           <AISuggestionsDialog
               isOpen={isAiSuggestionsOpen}
               onClose={() => setIsAiSuggestionsOpen(false)}
-              suggestions={currentAiSuggestions}
-              onApplySuggestions={handleApplyAiSuggestions}
+              suggestions={currentAiSuggestions} // Pass all initially fetched suggestions
+              onApplySuggestions={handleApplyAiSuggestions} // This will now merge selected parts
           />
         )}
 
@@ -303,3 +321,4 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
+

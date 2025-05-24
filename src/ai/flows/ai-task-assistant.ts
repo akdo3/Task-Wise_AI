@@ -21,6 +21,8 @@ const AiTaskAssistantOutputSchema = z.object({
   approachSuggestions: z.array(z.string()).describe('Suggestions on how to approach the task. These should be actionable and concise.'),
   improvedDescription: z.string().describe('An improved, more detailed, and clear description of the task. If the original description was good, refine it subtly or confirm its quality.'),
   generatedSubtasks: z.array(z.string()).describe('A list of generated subtasks for the task. These should be distinct from provided subtasks and help break down the main task further.'),
+  suggestedEmoji: z.string().optional().describe("A single, relevant emoji character that could be prepended to the task title. For example: '🎉' or '🛒'. If no suitable emoji, this can be omitted."),
+  suggestedTagline: z.string().optional().describe("A short, creative, and motivational tagline or motto for the task (max 10 words). For example: 'Let's get this done!' or 'Conquer the challenge!'. If no suitable tagline, this can be omitted."),
 });
 
 export type AiTaskAssistantOutput = z.infer<typeof AiTaskAssistantOutputSchema>;
@@ -31,11 +33,11 @@ export async function aiTaskAssistant(input: AiTaskAssistantInput): Promise<AiTa
 
 const prompt = ai.definePrompt({
   name: 'aiTaskAssistantPrompt',
-  input: {schema: AiTaskAssistantInputSchema}, 
+  input: {schema: AiTaskAssistantInputSchema},
   output: {schema: AiTaskAssistantOutputSchema},
-  prompt: `You are an AI assistant designed to help users plan and execute their tasks efficiently with a focus on clarity and conciseness.
+  prompt: `You are an AI assistant designed to help users plan and execute their tasks efficiently with a focus on clarity, conciseness, and a bit of creative flair.
 
-  Based on the task details provided, suggest actionable ways to approach the task, generate an improved task description, and suggest additional relevant subtasks.
+  Based on the task details provided, suggest actionable ways to approach the task, generate an improved task description, suggest additional relevant subtasks, a relevant emoji for the title, and a short creative tagline.
 
   Task Details:
   Description: {{{description}}}
@@ -50,6 +52,8 @@ const prompt = ai.definePrompt({
   1.  **Improved Description**: Refine the provided description. Make it clearer, more actionable, and comprehensive if needed. If it's already good, you can state that or make minor enhancements.
   2.  **Approach Suggestions**: Provide 2-3 concise, actionable suggestions on how to best tackle this task.
   3.  **Generated Subtasks**: Suggest 2-4 new, relevant subtasks that would help complete the main task. Do not repeat existing subtasks. If no further subtasks are logical, provide an empty array.
+  4.  **Suggested Emoji**: Suggest a single, relevant emoji (just the character, e.g., '🎉') suitable for prepending to the task title. If unsure, omit this field.
+  5.  **Suggested Tagline**: Suggest a short (max 10 words), creative, and motivational tagline for the task. If unsure, omit this field.
 
   Format your output STRICTLY as a JSON object matching the defined output schema.
   Ensure generated subtasks are distinct and add value.
@@ -60,7 +64,7 @@ const prompt = ai.definePrompt({
 const aiTaskAssistantFlow = ai.defineFlow(
   {
     name: 'aiTaskAssistantFlow',
-    inputSchema: AiTaskAssistantInputSchema, 
+    inputSchema: AiTaskAssistantInputSchema,
     outputSchema: AiTaskAssistantOutputSchema,
   },
   async (input) => {
@@ -68,3 +72,4 @@ const aiTaskAssistantFlow = ai.defineFlow(
     return output!;
   }
 );
+
