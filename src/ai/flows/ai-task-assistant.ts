@@ -5,6 +5,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+// Public input schema for the flow
 const AiTaskAssistantInputSchema = z.object({
   subtasks: z.array(z.string()).describe('A list of subtasks for the task.'),
   priority: z.string().describe('The priority of the task (e.g., high, medium, low).'),
@@ -16,6 +17,17 @@ const AiTaskAssistantInputSchema = z.object({
 });
 
 export type AiTaskAssistantInput = z.infer<typeof AiTaskAssistantInputSchema>;
+
+// Internal input schema for the prompt (uses pre-joined strings)
+const AiTaskAssistantPromptInputSchema = z.object({
+  subtasksString: z.string().describe('A comma-separated string of subtasks for the task. Empty if no subtasks.'),
+  priority: z.string().describe('The priority of the task (e.g., high, medium, low).'),
+  description: z.string().describe('A detailed description of the task. This could be the title if no explicit description is provided.'),
+  dueDate: z.string().describe('The due date of the task.'),
+  reminder: z.string().describe('A reminder for the task.'),
+  tagsString: z.string().describe('A comma-separated string of tags associated with the task. Empty if no tags.'),
+  imageUrl: z.string().optional().describe("An optional URL of an image related to the task."),
+});
 
 const AiTaskAssistantOutputSchema = z.object({
   approachSuggestions: z.array(z.string()).describe('Suggestions on how to approach the task. These should be actionable and concise.'),
@@ -34,7 +46,7 @@ export async function aiTaskAssistant(input: AiTaskAssistantInput): Promise<AiTa
 
 const prompt = ai.definePrompt({
   name: 'aiTaskAssistantPrompt',
-  input: {schema: AiTaskAssistantInputSchema},
+  input: {schema: AiTaskAssistantPromptInputSchema}, // Uses internal schema
   output: {schema: AiTaskAssistantOutputSchema},
   prompt: `You are an AI assistant designed to help users plan and execute their tasks efficiently with a focus on clarity, conciseness, and a bit of creative flair.
 
@@ -45,8 +57,8 @@ const prompt = ai.definePrompt({
   Priority: {{{priority}}}
   Due Date: {{#if dueDate}}{{{dueDate}}}{{else}}Not set{{/if}}
   Reminder: {{#if reminder}}{{{reminder}}}{{else}}Not set{{/if}}
-  Current Subtasks: {{#if subtasks.length}}{{join subtasks ", "}}{{else}}None provided{{/if}}
-  Tags: {{#if tags.length}}{{join tags ", "}}{{else}}None provided{{/if}}
+  Current Subtasks: {{#if subtasksString}}{{{subtasksString}}}{{else}}None provided{{/if}}
+  Tags: {{#if tagsString}}{{{tagsString}}}{{else}}None provided{{/if}}
   {{#if imageUrl}}Associated Image URL: {{{imageUrl}}}{{else}}No image URL provided by user.{{/if}}
 
   Your Goal:
@@ -66,11 +78,28 @@ const prompt = ai.definePrompt({
 const aiTaskAssistantFlow = ai.defineFlow(
   {
     name: 'aiTaskAssistantFlow',
-    inputSchema: AiTaskAssistantInputSchema,
+    inputSchema: AiTaskAssistantInputSchema, // Flow uses public schema
     outputSchema: AiTaskAssistantOutputSchema,
   },
-  async (input) => {
-    const {output} = await prompt(input);
+  async (input) => { // input here has .subtasks and .tags as arrays
+    const subtasksString = input.subtasks.join(', ');
+    const tagsString = input.tags.join(', ');
+
+    // Prepare payload for the prompt, matching AiTaskAssistantPromptInputSchema
+    const promptPayload = {
+      ...input, // Spread other properties like description, priority, etc.
+      subtasksString: subtasksString,
+      tagsString: tagsString,
+      // Remove original array properties if they conflict or are not needed by the prompt schema
+      // subtasks: undefined, // Not strictly necessary if not in AiTaskAssistantPromptInputSchema
+      // tags: undefined,     // Not strictly necessary if not in AiTaskAssistantPromptInputSchema
+    };
+    // Remove original array properties to avoid passing them to a prompt that doesn't expect them
+    delete (promptPayload as any).subtasks;
+    delete (promptPayload as any).tags;
+
+
+    const {output} = await prompt(promptPayload);
     return output!;
   }
 );
