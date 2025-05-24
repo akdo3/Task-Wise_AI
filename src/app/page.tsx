@@ -39,10 +39,10 @@ const sampleTasks: Task[] = [
     tags: ['personal', 'home', 'urgent'],
     delegatedTo: 'Self',
     imageUrl: 'https://placehold.co/600x400.png',
+    dataAiHint: 'groceries food',
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
     updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(), // 1 day ago
     completed: false,
-    dataAiHint: 'groceries food',
   },
   {
     id: '2',
@@ -59,10 +59,10 @@ const sampleTasks: Task[] = [
     tags: ['work', 'project', 'strategic'],
     delegatedTo: 'John Doe',
     imageUrl: 'https://placehold.co/600x400.png',
+    dataAiHint: 'business proposal',
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
     updatedAt: new Date().toISOString(),
     completed: false,
-    dataAiHint: 'business proposal',
   },
   {
     id: '3',
@@ -77,10 +77,10 @@ const sampleTasks: Task[] = [
     tags: ['health', 'personal'],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    imageUrl: 'https://placehold.co/600x400.png',
-    completed: true, 
-    completedAt: new Date(Date.now() - 86400000 * 1).toISOString(), 
+    // imageUrl intentionally omitted to test placeholder logic with dataAiHint
     dataAiHint: 'medical health',
+    completed: true,
+    completedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
   },
 ];
 
@@ -105,7 +105,7 @@ export default function HomePage() {
       try {
         const parsedTasks = JSON.parse(storedTasks);
         if (Array.isArray(parsedTasks) && parsedTasks.every(t => typeof t.id === 'string')) {
-          setTasks(parsedTasks.map(t => ({ ...t, completed: t.completed || false }))); 
+          setTasks(parsedTasks.map(t => ({ ...t, completed: t.completed || false })));
         } else {
           setTasks(sampleTasks.map(t => ({ ...t, completed: t.completed || false })));
         }
@@ -165,39 +165,34 @@ export default function HomePage() {
   const handleOpenTaskForm = (task: Task | null = null) => {
     setEditingTask(task);
     setIsTaskFormOpen(true);
-    // If opening an existing task that might have had an AI query staged previously but not used,
-    // we should clear any lingering query for the form unless it's re-fetched.
-    // However, if AI suggestions were just applied, we want to keep the query.
-    // This logic is tricky. For now, let's clear it unless it's part of 'editingTask' data.
-    // This means imageQueryForForm is primarily for NEW suggestions for the CURRENT form session.
-    if (!task && imageQueryForForm) { // If opening for a new task, clear any old query
-        // setImageQueryForForm(null); // Let's see if clearing in handleCloseTaskForm is enough
+    if (!task && imageQueryForForm) {
+      // Clearing imageQueryForForm is handled in handleCloseTaskForm
     }
   };
 
   const handleCloseTaskForm = () => {
     setIsTaskFormOpen(false);
     setEditingTask(null);
-    setRawAiOutputForDialog(null); 
+    setRawAiOutputForDialog(null);
     setStagedAiSuggestionsForSave(null);
-    setImageQueryForForm(null); // Clear active image query when form closes
+    setImageQueryForForm(null);
   };
 
   const handleTaskSubmit = (data: TaskFormData) => {
     const now = new Date().toISOString();
-    const taskData = {
+    const taskDataFromForm = { // Renamed to avoid confusion
       ...data,
-      description: data.description || "", 
+      description: data.description || "",
       dueDate: data.dueDate ? format(data.dueDate, 'yyyy-MM-dd') : undefined,
       reminderDate: data.reminderDate ? format(data.reminderDate, 'yyyy-MM-dd') : undefined,
       tags: data.tags || [],
       subtasks: data.subtasks || [],
-      imageUrl: data.imageUrl || undefined, 
+      imageUrl: data.imageUrl || undefined,
     };
     
-    let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'| 'dataAiHint'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt' | 'dataAiHint'>> = { ...taskData };
+    let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'| 'dataAiHint'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt' | 'dataAiHint'>> = { ...taskDataFromForm };
         
-    if (stagedAiSuggestionsForSave) { 
+    if (stagedAiSuggestionsForSave) {
         if (stagedAiSuggestionsForSave.improvedDescription) {
             finalTaskData.description = stagedAiSuggestionsForSave.improvedDescription;
         }
@@ -224,27 +219,52 @@ export default function HomePage() {
                 finalTaskData.description = `${finalTaskData.description}\n\n"${stagedAiSuggestionsForSave.suggestedTagline}"`;
             }
         }
-        // suggestedImageQuery is handled by TaskForm directly for generation, not saved to task data directly
     }
 
 
     if (editingTask) {
+      const updatedTask = {
+        ...editingTask,
+        ...finalTaskData,
+        updatedAt: now,
+      };
+      // If a new, non-placeholder image was added/changed, clear old dataAiHint so TaskCard uses a generic one or it remains undefined.
+      // This prevents a specific hint from persisting if the image context has significantly changed.
+      if (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) {
+          updatedTask.dataAiHint = undefined;
+      }
+
+
       setTasks(
-        tasks.map((t) =>
-          t.id === editingTask.id ? { ...t, ...finalTaskData, updatedAt: now, completed: t.completed, completedAt: t.completedAt, dataAiHint: t.dataAiHint } : t // preserve existing dataAiHint
-        )
+        tasks.map((t) => (t.id === editingTask.id ? updatedTask : t))
       );
       toast({ title: "Task Updated", description: `"${finalTaskData.title}" has been updated.` });
-    } else {
-      // For new tasks, dataAiHint can be set if an image wasn't provided but a hint was (e.g. from AI)
-      // This part is tricky as dataAiHint isn't directly on TaskFormData.
-      // For now, we'll rely on image generation or manual placeholder hints.
-      // If we were to use AI suggestedImageQuery to populate dataAiHint, it would be:
-      // const newDataAiHint = stagedAiSuggestionsForSave?.suggestedImageQuery ? stagedAiSuggestionsForSave.suggestedImageQuery.split(" ").slice(0,2).join(" ") : undefined;
-      setTasks([{ ...finalTaskData, id: crypto.randomUUID(), createdAt: now, updatedAt: now, completed: false } as Task, ...tasks]);
-      toast({ title: "Task Created", description: `"${finalTaskData.title}" has been added.` });
+    } else { // New task
+      const baseNewTask = {
+        ...finalTaskData,
+        id: crypto.randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+        completed: false,
+      };
+
+      let taskSpecificDataAiHint: string | undefined = undefined;
+
+      if (!baseNewTask.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
+        taskSpecificDataAiHint = stagedAiSuggestionsForSave.suggestedImageQuery.trim().split(' ').slice(0, 2).join(' ');
+      }
+      // If baseNewTask.imageUrl is already set (user-provided or AI-generated image),
+      // taskSpecificDataAiHint remains undefined. TaskCard will use its generic hint.
+
+      const newTask: Task = {
+        ...baseNewTask,
+        dataAiHint: taskSpecificDataAiHint, // Will be undefined if an image is present or no AI query
+      };
+
+      setTasks([newTask, ...tasks]);
+      toast({ title: "Task Created", description: `"${newTask.title}" has been added.` });
     }
-    handleCloseTaskForm(); // Also clears imageQueryForForm
+    handleCloseTaskForm();
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -256,13 +276,13 @@ export default function HomePage() {
   };
 
   const handleToggleSubtask = (taskId: string, subtaskId: string) => {
-    setTasks(prevTasks => 
-      prevTasks.map(task => 
-        task.id === taskId 
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
         ? {
             ...task,
-            subtasks: task.subtasks.map(subtask => 
-              subtask.id === subtaskId 
+            subtasks: task.subtasks.map(subtask =>
+              subtask.id === subtaskId
               ? { ...subtask, completed: !subtask.completed }
               : subtask
             )
@@ -272,7 +292,7 @@ export default function HomePage() {
     );
   };
 
-  const handleToggleTaskComplete = (taskId: string) => {
+ const handleToggleTaskComplete = (taskId: string) => {
     let taskTitleForToast = "";
     let newCompletionStatus: boolean | undefined = undefined;
 
@@ -303,13 +323,13 @@ export default function HomePage() {
  const handleGetAiSuggestions = async (aiInput: AiTaskFormInput) => {
     const result = await getAiTaskAssistance({
         ...aiInput,
-        dueDate: aiInput.dueDate || "", 
+        dueDate: aiInput.dueDate || "",
         reminder: aiInput.reminder || "",
         imageUrl: aiInput.imageUrl || undefined,
     });
     if (result && !('error' in result)) {
-        setRawAiOutputForDialog(result); 
-        openAiSuggestionsDialog(result); 
+        setRawAiOutputForDialog(result);
+        openAiSuggestionsDialog(result);
     } else if (result && 'error' in result) {
         toast({
             variant: "destructive",
@@ -317,7 +337,7 @@ export default function HomePage() {
             description: result.error,
         });
     }
-    return result; 
+    return result;
   };
   
   const openAiSuggestionsDialog = (suggestions: AiTaskAssistantOutput) => {
@@ -338,7 +358,7 @@ export default function HomePage() {
       title: "AI Suggestion Queued",
       description: "The suggestion has been noted. Save the task to apply it, or use staged elements like the image query for generation.",
     });
-     setIsAiSuggestionsOpen(false); 
+     setIsAiSuggestionsOpen(false);
   };
 
 
@@ -349,12 +369,12 @@ export default function HomePage() {
         <main className="flex-grow container mx-auto px-4 py-12">
           <TaskStatsDashboard tasks={tasks} />
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
-          <TaskList 
-            tasks={filteredTasks} 
-            onEditTask={handleOpenTaskForm} 
-            onDeleteTask={handleDeleteTask} 
+          <TaskList
+            tasks={filteredTasks}
+            onEditTask={handleOpenTaskForm}
+            onDeleteTask={handleDeleteTask}
             onToggleSubtask={handleToggleSubtask}
-            onToggleTaskComplete={handleToggleTaskComplete} 
+            onToggleTaskComplete={handleToggleTaskComplete}
           />
         </main>
 
@@ -379,11 +399,11 @@ export default function HomePage() {
           </DialogContent>
         </Dialog>
 
-        {rawAiOutputForDialog && ( 
+        {rawAiOutputForDialog && (
           <AISuggestionsDialog
               isOpen={isAiSuggestionsOpen}
               onClose={() => setIsAiSuggestionsOpen(false)}
-              suggestions={rawAiOutputForDialog} 
+              suggestions={rawAiOutputForDialog}
               onApplySuggestions={handleApplyAiSuggestions}
           />
         )}

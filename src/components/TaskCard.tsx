@@ -17,7 +17,7 @@ interface TaskCardProps {
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
-  onToggleComplete: (taskId: string) => void; // New prop
+  onToggleComplete: (taskId: string) => void;
 }
 
 const priorityBadgeClassConfig: Record<Priority, { bg: string; text: string; border: string }> = {
@@ -51,27 +51,28 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
   const badgeClasses = priorityBadgeClassConfig[task.priority];
   const cardBgClass = priorityCardBgClasses[task.priority];
 
+  const displayImageUrl = task.imageUrl || 'https://placehold.co/600x400.png';
+  const displayImageHint = task.dataAiHint || (task.imageUrl ? 'task visual context' : 'placeholder image');
+
   return (
     <Card className={cn(
       "animate-fade-in-up shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out flex flex-col h-full text-card-foreground rounded-[var(--radius)] border hover:border-[hsl(var(--primary))]",
       cardBgClass,
-      task.completed && "opacity-60 dark:opacity-50 bg-muted/30 dark:bg-muted/20 hover:opacity-100" // Style for completed tasks
+      task.completed && "opacity-60 dark:opacity-50 bg-muted/30 dark:bg-muted/20 hover:opacity-100"
       )}>
-      {task.imageUrl && (
-        <div className={cn("relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden", task.completed && "grayscale")}>
-          <Image
-            src={task.imageUrl}
-            alt={`Image for ${task.title}`}
-            layout="fill"
-            objectFit="cover"
-            data-ai-hint="task visual context" 
-          />
-        </div>
-      )}
-      <CardHeader className={cn("pb-3", task.imageUrl ? "pt-4" : "pt-6")}>
+      <div className={cn("relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden", task.completed && "grayscale")}>
+        <Image
+          src={displayImageUrl}
+          alt={`Image for ${task.title}`}
+          layout="fill"
+          objectFit="cover"
+          data-ai-hint={displayImageHint}
+        />
+      </div>
+      <CardHeader className={cn("pb-3 pt-4")}>
         <div className="flex justify-between items-start">
           <CardTitle className={cn("text-lg font-semibold leading-tight", task.completed && "line-through text-muted-foreground")}>{task.title}</CardTitle>
-          <Badge 
+          <Badge
             variant="outline"
             className={cn(
               "capitalize text-xs px-2 py-0.5 font-medium",
