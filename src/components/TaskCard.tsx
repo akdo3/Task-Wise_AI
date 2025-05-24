@@ -2,13 +2,13 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react'; // Added useEffect, useRef
 import Image from 'next/image';
 import type { Task, Priority } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress'; // Added import
+import { Progress } from '@/components/ui/progress';
 import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle, Wand2, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, parseISO } from 'date-fns';
@@ -41,7 +41,7 @@ const priorityBadgeClassConfig: Record<Priority, { baseBg: string; text: string;
     baseBg: 'bg-[hsl(var(--priority-high-bg-hsl))]',
     text: 'text-[hsl(var(--priority-high-fg-hsl))]',
     border: 'border-[hsl(var(--priority-high-border-hsl))]',
-    animatedClass: 'animate-pulse-subtle-bg' 
+    animatedClass: 'animate-pulse-subtle-bg'
   },
 };
 
@@ -60,17 +60,41 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
   const completedSubtasks = task.subtasks.filter(st => st.completed).length;
   const totalSubtasks = task.subtasks.length;
   const subtaskProgressPercentage = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
-  
+
   const badgeConfig = priorityBadgeClassConfig[task.priority];
   const cardBgClass = priorityCardBgClasses[task.priority];
 
   const displayImageUrl = task.imageUrl || 'https://placehold.co/600x400.png';
   const displayImageHint = task.dataAiHint || (task.imageUrl ? 'task visual context' : 'placeholder image');
 
-  const handleToggleCompleteAndCelebrate = () => {
-    if (!task.completed) { 
+  // Ref to store the previous count of completed subtasks
+  const prevCompletedSubtasksCountRef = useRef(completedSubtasks);
+
+  useEffect(() => {
+    const allSubtasksNowComplete = totalSubtasks > 0 && completedSubtasks === totalSubtasks;
+    const allSubtasksPreviouslyComplete = totalSubtasks > 0 && prevCompletedSubtasksCountRef.current === totalSubtasks;
+
+    // Trigger confetti if:
+    // 1. All subtasks are now complete.
+    // 2. They weren't all complete before this change (i.e., this is the action that completed the last subtask).
+    // 3. The main task itself is not already marked as complete (to avoid double confetti or confetti on already completed tasks).
+    if (allSubtasksNowComplete && !allSubtasksPreviouslyComplete && !task.completed) {
       setIsCelebrating(true);
-      setTimeout(() => setIsCelebrating(false), 800); 
+      setTimeout(() => setIsCelebrating(false), 800); // Duration of confetti animation, matches main task
+    }
+
+    // Update the ref for the next render/check
+    prevCompletedSubtasksCountRef.current = completedSubtasks;
+  }, [completedSubtasks, totalSubtasks, task.completed]);
+
+
+  const handleToggleCompleteAndCelebrate = () => {
+    // Only trigger main task celebration if it's transitioning to complete and not already celebrating from subtasks
+    if (!task.completed && !(totalSubtasks > 0 && completedSubtasks === totalSubtasks)) {
+      setIsCelebrating(true);
+      setTimeout(() => setIsCelebrating(false), 800);
+    } else if (task.completed) { // If un-completing, ensure celebration stops
+       setIsCelebrating(false);
     }
     onToggleComplete(task.id);
   };
@@ -145,14 +169,14 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
         <div className="flex justify-between items-start">
           <CardTitle className={cn("text-lg font-semibold leading-tight", task.completed && "line-through text-muted-foreground")}>{task.title}</CardTitle>
           <Badge
-            variant="outline" // Base variant, custom styles override as needed
+            variant="outline"
             className={cn(
               "capitalize text-xs px-2 py-0.5 font-medium",
               badgeConfig.baseBg,
               badgeConfig.text,
               badgeConfig.border,
               task.priority === 'high' && !task.completed && badgeConfig.animatedClass,
-              task.completed && "border-transparent !bg-muted text-muted-foreground opacity-70" 
+              task.completed && "border-transparent !bg-muted text-muted-foreground opacity-70"
             )}
           >
             {task.priority}
@@ -217,7 +241,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
               size="icon"
               onClick={handleToggleCompleteAndCelebrate}
               className={cn(
-                "relative text-muted-foreground", 
+                "relative text-muted-foreground",
                 task.completed ? "hover:text-yellow-500 dark:hover:text-yellow-400" : "hover:text-green-500 dark:hover:text-green-400"
               )}
             >
@@ -231,10 +255,10 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
                       className="confetti-particle"
                       style={{
                         background: `hsl(${Math.random() * 360}, 100%, 70%)`,
-                        transform: `translate(${Math.random() * 50 - 25}px, ${Math.random() * 50 - 25}px) rotate(${Math.random() * 360}deg) scale(0)`, 
-                        animationDelay: `${Math.random() * 0.05}s`, 
-                        width: `${Math.random() * 5 + 3}px`, 
-                        height: `${Math.random() * 5 + 3}px`, 
+                        transform: `translate(${Math.random() * 50 - 25}px, ${Math.random() * 50 - 25}px) rotate(${Math.random() * 360}deg) scale(0)`,
+                        animationDelay: `${Math.random() * 0.05}s`,
+                        width: `${Math.random() * 5 + 3}px`,
+                        height: `${Math.random() * 5 + 3}px`,
                       }}
                     />
                   ))}
@@ -266,5 +290,3 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
     </Card>
   );
 };
-
-    
