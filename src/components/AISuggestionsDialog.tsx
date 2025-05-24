@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
-import { Wand2, Smile, ThumbsUp } from 'lucide-react'; // Added Smile, ThumbsUp
+import { Wand2, Smile, ThumbsUp, SparklesIcon } from 'lucide-react'; // Added SparklesIcon
 
 interface AISuggestionsDialogProps {
   isOpen: boolean;
@@ -51,7 +51,9 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
   };
 
   const handleApplyDescription = () => {
-    onApplySuggestions({ improvedDescription: suggestions.improvedDescription });
+    if (suggestions.improvedDescription) {
+      onApplySuggestions({ improvedDescription: suggestions.improvedDescription });
+    }
   };
 
   const handleApplySelectedSubtasks = () => {
@@ -118,74 +120,78 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] p-4 border rounded-md space-y-6">
           {suggestions.suggestedEmoji && (
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Suggested Emoji:</h3>
-              <div className="flex items-center gap-3 bg-muted p-3 rounded-md">
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-2 flex items-center"><Smile className="mr-2 h-5 w-5 text-accent" />Suggested Emoji:</h3>
+              <div className="flex items-center justify-between gap-3 bg-background p-3 rounded-md shadow-sm">
                 <span className="text-3xl">{suggestions.suggestedEmoji}</span>
                 <Button onClick={handleApplyEmoji} size="sm" variant="outline">
-                  <Smile className="mr-2 h-4 w-4" /> Stage this Emoji
+                  Stage this Emoji
                 </Button>
               </div>
             </div>
           )}
 
           {suggestions.improvedDescription && (
-            <div>
+            <div className="p-4 bg-muted/50 rounded-lg">
               <h3 className="text-lg font-semibold mb-2">Improved Description:</h3>
-              <p className="text-sm bg-muted p-3 rounded-md whitespace-pre-wrap">
+              <p className="text-sm bg-background p-3 rounded-md whitespace-pre-wrap shadow-sm">
                 {suggestions.improvedDescription}
               </p>
-              <Button onClick={handleApplyDescription} size="sm" variant="outline" className="mt-2">Stage this Description</Button>
+              <Button onClick={handleApplyDescription} size="sm" variant="outline" className="mt-3">Stage this Description</Button>
             </div>
           )}
           
           {suggestions.suggestedTagline && (
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Suggested Tagline:</h3>
-              <p className="text-sm bg-muted p-3 rounded-md italic">
-                "{suggestions.suggestedTagline}"
-              </p>
-              <Button onClick={handleApplyTagline} size="sm" variant="outline" className="mt-2">
-                 <ThumbsUp className="mr-2 h-4 w-4" /> Stage this Tagline
-              </Button>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-2 flex items-center"><ThumbsUp className="mr-2 h-5 w-5 text-accent" />Suggested Tagline:</h3>
+              <div className="bg-background p-3 rounded-md shadow-sm">
+                <p className="text-sm italic mb-2">
+                  "{suggestions.suggestedTagline}"
+                </p>
+                <Button onClick={handleApplyTagline} size="sm" variant="outline">
+                   Stage this Tagline
+                </Button>
+              </div>
             </div>
           )}
 
           {suggestions.suggestedTaskVibe && (
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Suggested Task Vibe:</h3>
-              <div className="flex items-center gap-3 bg-muted p-3 rounded-md">
-                <p className="text-sm italic">"{suggestions.suggestedTaskVibe}"</p>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-2 flex items-center"><SparklesIcon className="mr-2 h-5 w-5 text-accent" />Suggested Task Vibe:</h3>
+              <div className="flex items-center justify-between gap-3 bg-background p-3 rounded-md shadow-sm">
+                <p className="text-sm font-medium">"{suggestions.suggestedTaskVibe}"</p>
                 <Button onClick={handleApplyTaskVibe} size="sm" variant="outline">Stage this Vibe</Button>
               </div>
             </div>
           )}
 
           {suggestions.suggestedImageQuery && (
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Suggested Image Generation Query:</h3>
-              <p className="text-sm bg-muted p-3 rounded-md font-mono">
-                {suggestions.suggestedImageQuery}
-              </p>
-              <Button onClick={handleApplyImageQuery} size="sm" variant="outline" className="mt-2">
-                <Wand2 className="mr-2 h-4 w-4" /> Stage this Query
-              </Button>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-2 flex items-center"><Wand2 className="mr-2 h-5 w-5 text-accent" />Suggested Image Query:</h3>
+              <div className="bg-background p-3 rounded-md shadow-sm">
+                <p className="text-sm font-mono mb-2">
+                  {suggestions.suggestedImageQuery}
+                </p>
+                <Button onClick={handleApplyImageQuery} size="sm" variant="outline">
+                  Stage this Query
+                </Button>
+              </div>
             </div>
           )}
 
 
           {suggestions.generatedSubtasks && suggestions.generatedSubtasks.length > 0 && (
-            <div>
+            <div className="p-4 bg-muted/50 rounded-lg">
               <h3 className="text-lg font-semibold mb-2">Generated Subtasks:</h3>
               <ul className="space-y-2.5">
                 {suggestions.generatedSubtasks.map((subtask, index) => (
-                  <li key={index} className="flex items-center gap-3 bg-muted p-3 rounded-md">
+                  <li key={index} className="flex items-center gap-3 bg-background p-3 rounded-md shadow-sm">
                     <Checkbox
                       id={`ai-subtask-${index}`}
                       checked={selectedGeneratedSubtasks.includes(subtask)}
                       onCheckedChange={(checked) => handleSubtaskSelectionChange(subtask, !!checked)}
                     />
-                    <Label htmlFor={`ai-subtask-${index}`} className="text-sm font-normal cursor-pointer">
+                    <Label htmlFor={`ai-subtask-${index}`} className="text-sm font-normal cursor-pointer flex-grow">
                       {subtask}
                     </Label>
                   </li>
@@ -196,21 +202,22 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
           )}
 
           {suggestions.approachSuggestions && suggestions.approachSuggestions.length > 0 && (
-            <div>
+            <div className="p-4 bg-muted/50 rounded-lg">
               <h3 className="text-lg font-semibold mb-2">Approach Suggestions (for your reference):</h3>
-              <ul className="list-disc list-inside space-y-1.5 pl-4">
+              <ul className="list-disc list-inside space-y-1.5 pl-4 text-sm">
                 {suggestions.approachSuggestions.map((approach, index) => (
-                  <li key={index} className="text-sm">{approach}</li>
+                  <li key={index}>{approach}</li>
                 ))}
               </ul>
             </div>
           )}
         </ScrollArea>
         <DialogFooter className="gap-2 sm:justify-between pt-4">
-          <Button variant="outline" onClick={onClose}>Close & Discard Staged</Button>
-          <Button onClick={handleApplyAll} className="bg-accent hover:bg-accent/90 text-accent-foreground">Apply All Staged & Close</Button>
+          <Button variant="ghost" onClick={onClose}>Close & Discard Staged</Button>
+          <Button onClick={handleApplyAll} className="bg-primary hover:bg-primary/90 text-primary-foreground">Apply All Staged & Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
+
