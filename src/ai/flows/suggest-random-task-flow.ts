@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to suggest a random task title, description, priority, and relevant tags.
+ * @fileOverview A Genkit flow to suggest a random task title, description, priority, relevant tags, and initial subtasks.
  *
  * - suggestRandomTask - A function that handles random task suggestion.
  * - SuggestRandomTaskOutput - The return type for the suggestRandomTask function.
@@ -16,6 +16,7 @@ const SuggestRandomTaskOutputSchema = z.object({
   suggestedDescription: z.string().max(150).optional().describe("A brief, 1-2 sentence description for the suggested task. Example: 'Take a short break and enjoy some fresh air to clear your mind.'"),
   suggestedPriority: z.enum(['low', 'medium', 'high'] as [Priority, ...Priority[]]).optional().describe("A suitable priority (low, medium, or high) for the suggested task."),
   suggestedTags: z.array(z.string()).max(2).optional().describe("One or two relevant, common tags for the suggested task. E.g., ['creative', 'home'], ['health', 'exercise'], ['learning']. Keep tags to single words if possible."),
+  suggestedSubtasks: z.array(z.string()).max(2).optional().describe("One or two concise, actionable subtasks to help get started with the suggested main task. If no subtasks make sense, provide an empty array. Example: ['Research destinations', 'Set a budget']"),
 });
 export type SuggestRandomTaskOutput = z.infer<typeof SuggestRandomTaskOutputSchema>;
 
@@ -32,17 +33,18 @@ Also, suggest:
 1.  A very brief (1-2 sentences, max 150 characters) description for the task.
 2.  A suitable priority (low, medium, or high) for the task.
 3.  One or two relevant, common, single-word tags for this task.
+4.  One or two concise, actionable subtasks to help get started with the suggested main task. If no subtasks make sense, provide an empty array.
 
-Provide just the task title, description, priority, and its associated tags. Make the title interesting and not too generic.
+Provide the task title, description, priority, its associated tags, and suggested subtasks. Make the title interesting and not too generic.
 
-Examples of good suggestions:
-Title: Plan a weekend getaway, Description: Research and outline a potential weekend trip, including destination ideas and budget considerations., Priority: medium, Tags: ["travel", "planning"]
-Title: Write a thank-you note, Description: Express gratitude to someone who has helped you recently with a handwritten note., Priority: low, Tags: ["personal", "communication"]
-Title: Try a new type of tea or coffee, Description: Brew and taste a new variety of tea or coffee you haven't tried before., Priority: low, Tags: ["food", "discovery"]
-Title: Declutter your digital desktop, Description: Organize files and remove unnecessary shortcuts from your computer desktop to improve focus., Priority: medium, Tags: ["organization", "digital"]
-Title: Learn 5 new words in a different language, Description: Use a language app or website to learn and practice five new vocabulary words., Priority: low, Tags: ["learning", "language"]
+Examples of good suggestions (including subtasks):
+Title: Plan a weekend getaway, Description: Research and outline a potential weekend trip, including destination ideas and budget considerations., Priority: medium, Tags: ["travel", "planning"], Subtasks: ["Research destinations", "Set a budget"]
+Title: Write a thank-you note, Description: Express gratitude to someone who has helped you recently with a handwritten note., Priority: low, Tags: ["personal", "communication"], Subtasks: ["Draft the note content", "Mail the note"]
+Title: Try a new type of tea or coffee, Description: Brew and taste a new variety of tea or coffee you haven't tried before., Priority: low, Tags: ["food", "discovery"], Subtasks: ["Buy a new tea/coffee variety", "Prepare and taste it"]
+Title: Declutter your digital desktop, Description: Organize files and remove unnecessary shortcuts from your computer desktop to improve focus., Priority: medium, Tags: ["organization", "digital"], Subtasks: ["Delete unused files", "Organize shortcuts into folders"]
+Title: Learn 5 new words in a different language, Description: Use a language app or website to learn and practice five new vocabulary words., Priority: low, Tags: ["learning", "language"], Subtasks: ["Choose a language app", "Practice the new words"]
 
-Return ONLY the suggested title, description, priority, and tags in the specified JSON output format.`,
+Return ONLY the suggested title, description, priority, tags, and subtasks in the specified JSON output format.`,
 });
 
 const suggestRandomTaskFlow = ai.defineFlow(

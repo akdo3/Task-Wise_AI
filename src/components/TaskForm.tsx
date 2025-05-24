@@ -95,7 +95,7 @@ export const TaskForm: FC<TaskFormProps> = ({
     },
   });
 
-  const { fields: subtaskFields, append: appendSubtask, remove: removeSubtask } = useFieldArray({
+  const { fields: subtaskFields, append: appendSubtask, remove: removeSubtask, replace: replaceSubtasks } = useFieldArray({
     control,
     name: 'subtasks',
   });
@@ -267,7 +267,6 @@ export const TaskForm: FC<TaskFormProps> = ({
     if (result && !('error' in result)) {
       let toastMessage = "";
       if (result.suggestedTitle) {
-        // If there's a staged emoji, prepend it to the AI suggested title
         const titleToSet = stagedEmoji ? `${stagedEmoji} ${result.suggestedTitle}` : result.suggestedTitle;
         setValue('title', titleToSet, { shouldValidate: true });
         toastMessage += `Suggested title: "${result.suggestedTitle}". `;
@@ -291,10 +290,30 @@ export const TaskForm: FC<TaskFormProps> = ({
           const finalNewTags = newTagsToAdd.slice(0, 5 - currentTags.length);
           setValue('tags', [...currentTags, ...finalNewTags]);
           if (finalNewTags.length > 0) {
-             toastMessage += `Tags: ${finalNewTags.join(', ')} added.`;
+             toastMessage += `Tags: ${finalNewTags.join(', ')} added. `;
           }
         }
       }
+      
+      if (result.suggestedSubtasks && result.suggestedSubtasks.length > 0) {
+        const currentSubtasks = getValues('subtasks') || [];
+        const newAiSubtasks: Subtask[] = result.suggestedSubtasks
+          .slice(0, 10 - currentSubtasks.length) // Respect max 10 subtasks total
+          .map(stText => ({
+            id: crypto.randomUUID(),
+            text: stText,
+            completed: false,
+          }));
+        
+        if (newAiSubtasks.length > 0) {
+           // Replace existing subtasks if any, or set new ones
+          const allSubtasks = [...currentSubtasks, ...newAiSubtasks].slice(0,10); // ensure we don't exceed total limit
+          replaceSubtasks(allSubtasks); // Use replace to set the whole array
+          toastMessage += `Subtasks: ${newAiSubtasks.map(s => s.text).join(', ')} added.`;
+        }
+      }
+
+
       if (toastMessage) {
         toast({
           title: "Task Idea Sparked!",
