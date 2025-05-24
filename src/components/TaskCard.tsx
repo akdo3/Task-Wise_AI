@@ -42,7 +42,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
   const priorityClasses = priorityClassConfig[task.priority];
 
   return (
-    <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col h-full bg-card text-card-foreground rounded-[var(--radius)]">
+    <Card className="animate-fade-in-up shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out flex flex-col h-full bg-card text-card-foreground rounded-[var(--radius)]">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-semibold leading-tight">{task.title}</CardTitle>
