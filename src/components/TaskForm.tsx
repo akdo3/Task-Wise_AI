@@ -100,7 +100,7 @@ export const TaskForm: FC<TaskFormProps> = ({
     name: 'subtasks',
   });
 
-  const tags = watch('tags') || [];
+  const watchedTags = watch('tags') || [];
   const currentTitle = watch('title');
 
   useEffect(() => {
@@ -129,16 +129,16 @@ export const TaskForm: FC<TaskFormProps> = ({
   }, [task, reset, stagedEmoji]);
 
   const handleAddTag = () => {
-    if (currentTag.trim() && !tags.includes(currentTag.trim()) && tags.length < 5) {
-      setValue('tags', [...tags, currentTag.trim()]);
+    if (currentTag.trim() && !watchedTags.includes(currentTag.trim()) && watchedTags.length < 5) {
+      setValue('tags', [...watchedTags, currentTag.trim()]);
       setCurrentTag('');
-    } else if (tags.length >= 5) {
+    } else if (watchedTags.length >= 5) {
         toast({ variant: "destructive", title: "Tag Limit Reached", description: "You can add a maximum of 5 tags."});
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setValue('tags', tags.filter((tag) => tag !== tagToRemove));
+    setValue('tags', watchedTags.filter((tag) => tag !== tagToRemove));
   };
   
   const handleFormSubmit = (data: TaskFormData) => {
@@ -216,9 +216,25 @@ export const TaskForm: FC<TaskFormProps> = ({
 
     if (result && !('error' in result) && result.suggestedTitle) {
       setValue('title', result.suggestedTitle, { shouldValidate: true });
+      let toastMessage = `"${result.suggestedTitle}" has been added to the title.`;
+
+      if (result.suggestedTags && result.suggestedTags.length > 0) {
+        const currentTags = getValues('tags') || [];
+        const newTagsToAdd = result.suggestedTags.filter(
+          (tag) => !currentTags.includes(tag) && currentTags.length + (currentTags.includes(tag) ? 0 : 1) <= 5
+        );
+        
+        if (newTagsToAdd.length > 0) {
+          const finalNewTags = newTagsToAdd.slice(0, 5 - currentTags.length); // Ensure we don't exceed 5 tags
+          setValue('tags', [...currentTags, ...finalNewTags]);
+          if (finalNewTags.length > 0) {
+             toastMessage += ` Suggested tags: ${finalNewTags.join(', ')} added.`;
+          }
+        }
+      }
       toast({
         title: "Task Idea Suggested!",
-        description: `"${result.suggestedTitle}" has been added to the title.`,
+        description: toastMessage,
       });
     } else {
       const errorMessage = (result && 'error' in result) ? result.error : "Failed to get a task suggestion.";
@@ -264,7 +280,7 @@ export const TaskForm: FC<TaskFormProps> = ({
                 className="text-xs text-accent hover:text-accent/80"
               >
                 {isInspireMeLoading ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin animate-pulse" />
                 ) : (
                   <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
                 )}
@@ -413,7 +429,7 @@ export const TaskForm: FC<TaskFormProps> = ({
         </div>
         {errors.tags && <p className="text-xs text-destructive mt-1.5">{errors.tags.message}</p>}
         <div className="flex flex-wrap gap-2 mt-2.5">
-          {tags.map((tag) => (
+          {watchedTags.map((tag) => (
             <span key={tag} className="bg-secondary text-secondary-foreground px-3 py-1.5 rounded-full text-xs flex items-center font-medium">
               {tag}
               <Button type="button" variant="ghost" size="icon" className="ml-1.5 h-4 w-4" onClick={() => handleRemoveTag(tag)}>
@@ -447,7 +463,7 @@ export const TaskForm: FC<TaskFormProps> = ({
             </div>
             <Button type="button" variant="outline" onClick={handleGenerateImage} disabled={isImageGenerating} className="shrink-0">
                  {isImageGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                {isImageGenerating ? 'Generating...' : 'Generate'}
+                {isImageGenerating ? 'Generating...' : (activeImageQuery ? 'Generate with AI Query' : 'Generate Image')}
             </Button>
         </div>
         {errors.imageUrl && <p className="text-xs text-destructive mt-1.5">{errors.imageUrl.message}</p>}
@@ -466,7 +482,7 @@ export const TaskForm: FC<TaskFormProps> = ({
       <div className="flex justify-end gap-3 pt-4">
         <Button type="button" variant="ghost" onClick={onCancel} className="px-6">Cancel</Button>
         <Button type="button" onClick={handleAiAssist} variant="outline" disabled={isAiLoading} className="px-6">
-            {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4 animate-pulse" />}
             {isAiLoading ? 'Thinking...' : 'AI Assist'}
         </Button>
         <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6">
