@@ -174,3 +174,22 @@
   animation-fill-mode: forwards;
   pointer-events: none;
 }
+
+/* High Priority Glow Animation */
+@keyframes high-priority-glow {
+  0%, 100% {
+    /* Use a slightly less spread shadow for the "resting" state */
+    box-shadow: 0 0 8px 2px hsla(var(--priority-high-fg-hsl), 0.35);
+  }
+  50% {
+    /* Use a more spread and slightly more opaque shadow for the "pulse" state */
+    box-shadow: 0 0 16px 4px hsla(var(--priority-high-fg-hsl), 0.5);
+  }
+}
+
+.high-priority-glow-effect {
+  animation-name: high-priority-glow;
+  animation-duration: 2.5s; /* Slightly slower for a calmer pulse */
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
