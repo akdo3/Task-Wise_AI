@@ -10,8 +10,8 @@ interface HeaderProps {
 
 export const Header: FC<HeaderProps> = ({ onAddTask }) => {
   return (
-    <header className="bg-card shadow-md sticky top-0 z-50">
-      <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+    <header className="bg-card shadow-sm sticky top-0 z-50">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Logo />
         </div>

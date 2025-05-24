@@ -41,9 +41,9 @@ export const TaskFilterControls: FC<TaskFilterControlsProps> = ({ onFilterChange
   };
 
   return (
-    <div className="mb-8 p-6 bg-card rounded-lg shadow">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-        <div>
+    <div className="mb-8">
+      <div className="flex flex-wrap gap-4 items-end">
+        <div className="flex-grow min-w-[200px] sm:min-w-[240px]">
           <label htmlFor="searchTerm" className="block text-sm font-medium text-foreground mb-1">Search Tasks</label>
           <Input
             id="searchTerm"
@@ -53,15 +53,15 @@ export const TaskFilterControls: FC<TaskFilterControlsProps> = ({ onFilterChange
             onChange={handleInputChange}
           />
         </div>
-        <div>
-          <label htmlFor="priority" className="block text-sm font-medium text-foreground mb-1">Filter by Priority</label>
+        <div className="flex-grow min-w-[150px] sm:min-w-[180px]">
+          <label htmlFor="priority" className="block text-sm font-medium text-foreground mb-1">Priority</label>
           <Select
             name="priority"
             value={filters.priority}
             onValueChange={(value) => handleSelectChange('priority', value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="All Priorities" />
+              <SelectValue placeholder="All" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Priorities</SelectItem>
@@ -71,8 +71,8 @@ export const TaskFilterControls: FC<TaskFilterControlsProps> = ({ onFilterChange
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <label htmlFor="dueDate" className="block text-sm font-medium text-foreground mb-1">Filter by Due Date</label>
+        <div className="flex-grow min-w-[150px] sm:min-w-[180px]">
+          <label htmlFor="dueDate" className="block text-sm font-medium text-foreground mb-1">Due Date</label>
           <Input
             id="dueDate"
             name="dueDate"
@@ -81,19 +81,19 @@ export const TaskFilterControls: FC<TaskFilterControlsProps> = ({ onFilterChange
             onChange={handleInputChange}
           />
         </div>
-        <div>
-          <label htmlFor="tags" className="block text-sm font-medium text-foreground mb-1">Filter by Tags</label>
+        <div className="flex-grow min-w-[150px] sm:min-w-[180px]">
+          <label htmlFor="tags" className="block text-sm font-medium text-foreground mb-1">Tags</label>
           <Input
             id="tags"
             name="tags"
-            placeholder="e.g., work,personal"
+            placeholder="e.g., work,home"
             value={filters.tags}
             onChange={handleInputChange}
           />
         </div>
-         <div className="lg:col-span-4 flex justify-end">
-          <Button onClick={handleResetFilters} variant="outline">
-            <X className="mr-2 h-4 w-4" /> Reset Filters
+         <div className="ml-auto pt-1"> {/* Using ml-auto to push to the right, pt-1 for alignment with taller inputs */}
+          <Button onClick={handleResetFilters} variant="ghost">
+            <X className="mr-2 h-4 w-4" /> Reset
           </Button>
         </div>
       </div>

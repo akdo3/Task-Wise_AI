@@ -62,7 +62,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
             {task.priority}
           </Badge>
         </div>
-        <CardDescription className="text-muted-foreground line-clamp-2">{task.description}</CardDescription>
+        <CardDescription className="text-sm text-muted-foreground line-clamp-2">{task.description}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow space-y-3">
         {task.dueDate && (

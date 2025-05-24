@@ -245,13 +245,13 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header onAddTask={() => handleOpenTaskForm()} />
-      <main className="flex-grow container mx-auto px-4 py-8">
+      <main className="flex-grow container mx-auto px-4 py-10">
         <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
         <TaskList tasks={filteredTasks} onEditTask={handleOpenTaskForm} onDeleteTask={handleDeleteTask} onToggleSubtask={handleToggleSubtask}/>
       </main>
 
       <Dialog open={isTaskFormOpen} onOpenChange={setIsTaskFormOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
+        <DialogContent className="md:max-w-[750px] lg:max-w-[800px] max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
               <DialogDescription>
