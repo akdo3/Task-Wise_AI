@@ -222,12 +222,22 @@ export default function HomePage() {
 
 
     if (editingTask) {
+      let updatedDataAiHint: string | undefined = editingTask.dataAiHint;
+
+      if (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) {
+        // A new, specific image URL was provided or generated, so clear the AI hint.
+        updatedDataAiHint = undefined;
+      } else if (!finalTaskData.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
+        // No image URL is set (or it's a placeholder), AND AI suggested an image query. Use it for the hint.
+        updatedDataAiHint = stagedAiSuggestionsForSave.suggestedImageQuery.trim().split(' ').slice(0, 2).join(' ');
+      }
+      // Otherwise, retain the existing dataAiHint or let it be undefined if it was already.
+
       const updatedTask: Task = {
         ...editingTask,
         ...finalTaskData,
         updatedAt: now,
-        // Retain original dataAiHint if imageUrl hasn't changed or is still a placeholder
-        dataAiHint: (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) ? undefined : editingTask.dataAiHint,
+        dataAiHint: updatedDataAiHint,
       };
       
       setTasks(
@@ -251,7 +261,7 @@ export default function HomePage() {
       
       const newTask: Task = {
         ...baseNewTask,
-        description: baseNewTask.description || "", // Ensure description is not undefined
+        description: baseNewTask.description || "", 
         dataAiHint: taskSpecificDataAiHint,
       };
 
@@ -443,3 +453,4 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
+
