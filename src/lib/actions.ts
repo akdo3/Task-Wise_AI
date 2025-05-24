@@ -3,6 +3,7 @@
 
 import { aiTaskAssistant, type AiTaskAssistantInput, type AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
 import { generateTaskImage, type GenerateTaskImageInput, type GenerateTaskImageOutput } from "@/ai/flows/generate-task-image-flow";
+import { suggestRandomTaskTitle as suggestRandomTaskTitleFlow, type SuggestRandomTaskOutput } from "@/ai/flows/suggest-random-task-flow";
 
 export async function getAiTaskAssistance(input: AiTaskAssistantInput): Promise<AiTaskAssistantOutput | { error: string }> {
   try {
@@ -22,7 +23,6 @@ export async function getAiTaskAssistance(input: AiTaskAssistantInput): Promise<
 
 export async function generateImageForTask(input: GenerateTaskImageInput): Promise<GenerateTaskImageOutput | { error: string }> {
   try {
-    // The input type GenerateTaskImageInput already includes an optional imageQuery
     const result = await generateTaskImage(input);
     return result;
   } catch (error) {
@@ -30,3 +30,14 @@ export async function generateImageForTask(input: GenerateTaskImageInput): Promi
     return { error: error instanceof Error ? error.message : "An unknown error occurred during image generation" };
   }
 }
+
+export async function suggestRandomTaskTitle(): Promise<SuggestRandomTaskOutput | { error: string }> {
+  try {
+    const result = await suggestRandomTaskTitleFlow();
+    return result;
+  } catch (error) {
+    console.error("Error calling suggest random task title flow:", error);
+    return { error: error instanceof Error ? error.message : "An unknown error occurred during task title suggestion" };
+  }
+}
+

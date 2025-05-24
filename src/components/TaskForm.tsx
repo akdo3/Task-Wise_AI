@@ -20,11 +20,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon, Wand2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon, Wand2, Lightbulb, Loader2 } from 'lucide-react';
 import type { Task, Subtask, Priority, AiTaskFormInput } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
-import { generateImageForTask as generateImageAction } from '@/lib/actions'; 
+import { generateImageForTask as generateImageAction, suggestRandomTaskTitle as suggestRandomTaskTitleAction } from '@/lib/actions'; 
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
@@ -69,6 +69,7 @@ export const TaskForm: FC<TaskFormProps> = ({
   const [currentTag, setCurrentTag] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isImageGenerating, setIsImageGenerating] = useState(false);
+  const [isInspireMeLoading, setIsInspireMeLoading] = useState(false);
 
   const {
     control,
@@ -100,27 +101,17 @@ export const TaskForm: FC<TaskFormProps> = ({
   });
 
   const tags = watch('tags') || [];
+  const currentTitle = watch('title');
 
   useEffect(() => {
     let titleToSet = task?.title || '';
     if (task && stagedEmoji) {
-      // If a staged emoji exists, and the task title doesn't already start with it,
-      // it implies the emoji was staged *after* the form was opened with an existing task.
-      // The actual prepending happens on submit; here we just ensure the raw title is used for editing.
-      // However, if the task.title ALREADY has this emoji from a previous save, that's fine.
        const titleParts = task.title.split(" ");
        const firstPart = titleParts[0];
        if (/\p{Emoji}/u.test(firstPart) && firstPart === stagedEmoji) {
-        // Title already has the staged emoji, no change needed for display in form
        } else if (/\p{Emoji}/u.test(firstPart) && firstPart !== stagedEmoji) {
-        // Title has a DIFFERENT emoji, use title without it for editing
         titleToSet = task.title.replace(/^\p{Emoji_Presentation}\s*/u, '').trimStart();
-       } else if (!/\p{Emoji}/u.test(firstPart) && stagedEmoji){
-        // Title has no emoji, but one is staged. Use raw title for editing.
-        // Staged emoji will be shown next to label.
        }
-    } else if (!task && stagedEmoji) {
-      // New task, emoji staged. Title input is empty. Emoji shown by label.
     }
 
 
@@ -135,7 +126,7 @@ export const TaskForm: FC<TaskFormProps> = ({
       delegatedTo: task?.delegatedTo || '',
       imageUrl: task?.imageUrl || '',
     });
-  }, [task, reset, stagedEmoji]); // Add stagedEmoji to dependency array
+  }, [task, reset, stagedEmoji]);
 
   const handleAddTag = () => {
     if (currentTag.trim() && !tags.includes(currentTag.trim()) && tags.length < 5) {
@@ -156,14 +147,13 @@ export const TaskForm: FC<TaskFormProps> = ({
 
   const handleAiAssist = async () => {
     const formData = watch(); 
-    let currentTitle = formData.title || '';
-    // If a staged emoji is present and not already in the input, consider it for AI context
-    if (stagedEmoji && !currentTitle.startsWith(stagedEmoji)) {
-        currentTitle = `${stagedEmoji} ${currentTitle}`;
+    let currentTitleForAI = formData.title || '';
+    if (stagedEmoji && !currentTitleForAI.startsWith(stagedEmoji)) {
+        currentTitleForAI = `${stagedEmoji} ${currentTitleForAI}`;
     }
 
     const aiInput: AiTaskFormInput = {
-      description: formData.description || currentTitle || "New Task", 
+      description: formData.description || currentTitleForAI || "New Task", 
       subtasks: formData.subtasks?.map(st => st.text) || [],
       priority: formData.priority || 'medium',
       dueDate: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : '',
@@ -183,10 +173,10 @@ export const TaskForm: FC<TaskFormProps> = ({
   };
 
   const handleGenerateImage = async () => {
-    const currentTitle = getValues('title');
+    const currentTitleValue = getValues('title');
     const currentDescription = getValues('description');
 
-    if (!currentTitle && !activeImageQuery) {
+    if (!currentTitleValue && !activeImageQuery) {
       toast({
         variant: "destructive",
         title: "Title or AI Query Required",
@@ -197,7 +187,7 @@ export const TaskForm: FC<TaskFormProps> = ({
 
     setIsImageGenerating(true);
     const result = await generateImageAction({ 
-        taskTitle: currentTitle, 
+        taskTitle: currentTitleValue, 
         taskDescription: currentDescription,
         imageQuery: activeImageQuery || undefined 
     });
@@ -209,8 +199,6 @@ export const TaskForm: FC<TaskFormProps> = ({
         title: "Image Generated",
         description: `AI has generated an image ${activeImageQuery ? "using the suggested query." : "for your task."}`,
       });
-      // Optionally clear the activeImageQuery after successful generation
-      // onClearActiveImageQuery(); 
     } else {
       const errorMessage = (result && 'error' in result) ? result.error : "Failed to generate image."
       toast({
@@ -221,28 +209,68 @@ export const TaskForm: FC<TaskFormProps> = ({
     }
   };
 
+  const handleInspireMe = async () => {
+    setIsInspireMeLoading(true);
+    const result = await suggestRandomTaskTitleAction();
+    setIsInspireMeLoading(false);
+
+    if (result && !('error' in result) && result.suggestedTitle) {
+      setValue('title', result.suggestedTitle, { shouldValidate: true });
+      toast({
+        title: "Task Idea Suggested!",
+        description: `"${result.suggestedTitle}" has been added to the title.`,
+      });
+    } else {
+      const errorMessage = (result && 'error' in result) ? result.error : "Failed to get a task suggestion.";
+      toast({
+        variant: "destructive",
+        title: "Suggestion Error",
+        description: errorMessage,
+      });
+    }
+  };
+
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-1">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            {stagedEmoji && (
-              <div className="flex items-center gap-1 bg-accent/10 px-2 py-1 rounded-md">
-                <span className="text-xl">{stagedEmoji}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={onClearStagedEmoji}
-                  className="h-5 w-5 text-muted-foreground hover:text-destructive"
-                  aria-label="Clear staged emoji"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+              {stagedEmoji && (
+                <div className="flex items-center gap-1 bg-accent/10 px-2 py-1 rounded-md">
+                  <span className="text-xl">{stagedEmoji}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={onClearStagedEmoji}
+                    className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                    aria-label="Clear staged emoji"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+              <Label htmlFor="title" className="text-sm font-medium">Title</Label>
+            </div>
+            {!task && !currentTitle && (
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleInspireMe} 
+                disabled={isInspireMeLoading}
+                className="text-xs text-accent hover:text-accent/80"
+              >
+                {isInspireMeLoading ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Inspire Me!
+              </Button>
             )}
-            <Label htmlFor="title" className="text-sm font-medium">Title</Label>
           </div>
           <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} />
           {errors.title && <p className="text-xs text-destructive mt-1.5">{errors.title.message}</p>}
@@ -418,7 +446,7 @@ export const TaskForm: FC<TaskFormProps> = ({
                 />
             </div>
             <Button type="button" variant="outline" onClick={handleGenerateImage} disabled={isImageGenerating} className="shrink-0">
-                <Wand2 className="mr-2 h-4 w-4" />
+                 {isImageGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                 {isImageGenerating ? 'Generating...' : 'Generate'}
             </Button>
         </div>
@@ -438,7 +466,8 @@ export const TaskForm: FC<TaskFormProps> = ({
       <div className="flex justify-end gap-3 pt-4">
         <Button type="button" variant="ghost" onClick={onCancel} className="px-6">Cancel</Button>
         <Button type="button" onClick={handleAiAssist} variant="outline" disabled={isAiLoading} className="px-6">
-            <Sparkles className="mr-2 h-4 w-4" /> {isAiLoading ? 'Thinking...' : 'AI Assist'}
+            {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            {isAiLoading ? 'Thinking...' : 'AI Assist'}
         </Button>
         <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6">
           {task ? 'Save Changes' : 'Create Task'}
