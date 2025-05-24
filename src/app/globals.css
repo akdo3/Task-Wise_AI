@@ -48,6 +48,12 @@
     --priority-high-fg-hsl: 0 70% 50%;
     --priority-high-border-hsl: 5 75% 90%;
 
+    /* Subtle Priority Card Backgrounds - Light Theme */
+    --priority-low-card-bg-subtle: 180 45% 96%;
+    --priority-medium-card-bg-subtle: 30 85% 96%;
+    --priority-high-card-bg-subtle: 0 80% 96%;
+
+
     /* Sidebar specific colors */
     --sidebar-background: 190 30% 96%; /* Very light cool grayish-cyan */
     --sidebar-foreground: 200 25% 25%;
@@ -107,6 +113,11 @@
     --priority-high-fg-hsl: 0 70% 75%;
     --priority-high-border-hsl: 0 50% 30%;
     
+    /* Subtle Priority Card Backgrounds - Dark Theme */
+    --priority-low-card-bg-subtle-dark: 180 35% 16%;
+    --priority-medium-card-bg-subtle-dark: 30 45% 16%;
+    --priority-high-card-bg-subtle-dark: 0 45% 16%;
+
     /* Sidebar specific colors - Dark Theme */
     --sidebar-background: 200 30% 8%; /* Slightly darker than main dark bg */
     --sidebar-foreground: 200 15% 90%;

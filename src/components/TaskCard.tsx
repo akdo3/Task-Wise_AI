@@ -19,7 +19,7 @@ interface TaskCardProps {
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
 }
 
-const priorityClassConfig: Record<Priority, { bg: string; text: string; border: string }> = {
+const priorityBadgeClassConfig: Record<Priority, { bg: string; text: string; border: string }> = {
   low: {
     bg: 'bg-transparent hover:bg-[hsl(var(--priority-low-bg-hsl)/0.5)]',
     text: 'text-[hsl(var(--priority-low-fg-hsl))]',
@@ -37,13 +37,24 @@ const priorityClassConfig: Record<Priority, { bg: string; text: string; border: 
   },
 };
 
+const priorityCardBgClasses: Record<Priority, string> = {
+  low: 'bg-[hsl(var(--priority-low-card-bg-subtle))] dark:bg-[hsl(var(--priority-low-card-bg-subtle-dark))]',
+  medium: 'bg-[hsl(var(--priority-medium-card-bg-subtle))] dark:bg-[hsl(var(--priority-medium-card-bg-subtle-dark))]',
+  high: 'bg-[hsl(var(--priority-high-card-bg-subtle))] dark:bg-[hsl(var(--priority-high-card-bg-subtle-dark))]',
+};
+
+
 export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSubtask }) => {
   const completedSubtasks = task.subtasks.filter(st => st.completed).length;
   const totalSubtasks = task.subtasks.length;
-  const priorityClasses = priorityClassConfig[task.priority];
+  const badgeClasses = priorityBadgeClassConfig[task.priority];
+  const cardBgClass = priorityCardBgClasses[task.priority];
 
   return (
-    <Card className="animate-fade-in-up shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out flex flex-col h-full bg-card text-card-foreground rounded-[var(--radius)]">
+    <Card className={cn(
+      "animate-fade-in-up shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out flex flex-col h-full text-card-foreground rounded-[var(--radius)] border hover:border-[hsl(var(--primary))]",
+      cardBgClass
+      )}>
       {task.imageUrl && (
         <div className="relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden">
           <Image
@@ -62,9 +73,9 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
             variant="outline"
             className={cn(
               "capitalize text-xs px-2 py-0.5 font-medium",
-              priorityClasses.bg,
-              priorityClasses.text,
-              priorityClasses.border
+              badgeClasses.bg,
+              badgeClasses.text,
+              badgeClasses.border
             )}
           >
             {task.priority}
