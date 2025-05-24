@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { FC } from 'react';
@@ -16,16 +15,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
-import { Wand2, Smile, ThumbsUp, SparklesIcon } from 'lucide-react'; // Added SparklesIcon
+import { Wand2, Smile, ThumbsUp, SparklesIcon, MessageSquareQuote } from 'lucide-react';
 
-interface AISuggestionsDialogProps {
+// Define a common structure for suggestions that the dialog can handle
+export interface AISuggestionsDialogCommonProps {
+  suggestions: (AiTaskAssistantOutput & { imageReviewFeedback?: string }) | null;
   isOpen: boolean;
   onClose: () => void;
-  suggestions: AiTaskAssistantOutput | null; // This will be the raw AI output
-  onApplySuggestions: (appliedSuggestions: Partial<AiTaskAssistantOutput>) => void;
+  onApplySuggestions: (appliedSuggestions: Partial<AiTaskAssistantOutput & { imageReviewFeedback?: string }>) => void;
 }
 
-export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
+
+export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
   isOpen,
   onClose,
   suggestions,
@@ -35,10 +36,9 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
 
   useEffect(() => {
     if (isOpen && suggestions?.generatedSubtasks) {
-      // Pre-select all newly suggested subtasks when the dialog opens or suggestions change
       setSelectedGeneratedSubtasks(suggestions.generatedSubtasks);
     } else if (!isOpen) {
-      setSelectedGeneratedSubtasks([]); // Clear selection when dialog closes
+      setSelectedGeneratedSubtasks([]); 
     }
   }, [isOpen, suggestions?.generatedSubtasks]);
 
@@ -73,6 +73,7 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
   };
 
   const handleApplyImageQuery = () => {
+    // This applies 'suggestedImageQuery' which can come from task assist OR image review
     if (suggestions.suggestedImageQuery) {
       onApplySuggestions({ suggestedImageQuery: suggestions.suggestedImageQuery });
     }
@@ -85,11 +86,14 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
   };
 
   const handleApplyAll = () => {
-    const applicableSuggestions: Partial<AiTaskAssistantOutput> = {};
+    const applicableSuggestions: Partial<AiTaskAssistantOutput & { imageReviewFeedback?: string }> = {};
     if (suggestions.improvedDescription) {
         applicableSuggestions.improvedDescription = suggestions.improvedDescription;
     }
-    applicableSuggestions.generatedSubtasks = selectedGeneratedSubtasks;
+    if (selectedGeneratedSubtasks.length > 0 || (suggestions.generatedSubtasks && suggestions.generatedSubtasks.length === 0) ) {
+        // ensure empty array is passed if no subtasks were ever suggested or all deselected
+        applicableSuggestions.generatedSubtasks = selectedGeneratedSubtasks;
+    }
     
     if (suggestions.suggestedEmoji) {
         applicableSuggestions.suggestedEmoji = suggestions.suggestedEmoji;
@@ -97,13 +101,15 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
     if (suggestions.suggestedTagline) {
         applicableSuggestions.suggestedTagline = suggestions.suggestedTagline;
     }
-    if (suggestions.suggestedImageQuery) {
+    // This handles image query from either task assistance or image review
+    if (suggestions.suggestedImageQuery) { 
         applicableSuggestions.suggestedImageQuery = suggestions.suggestedImageQuery;
     }
     if (suggestions.suggestedTaskVibe) {
         applicableSuggestions.suggestedTaskVibe = suggestions.suggestedTaskVibe;
     }
-    // approachSuggestions are for viewing, not direct application to form fields
+    // imageReviewFeedback is for display, not direct application to a form field in this manner.
+    // approachSuggestions are also for viewing.
 
     onApplySuggestions(applicableSuggestions);
     onClose();
@@ -113,12 +119,25 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>AI Task Suggestions</DialogTitle>
+          <DialogTitle>AI Suggestions</DialogTitle>
           <DialogDescription>
-            Review and select the AI suggestions to enhance your task. Click "Apply All Staged" or choose individual suggestions.
+            Review and select the AI suggestions. Staged items will be applied when you save the task, or can be used directly (e.g., image query).
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] p-4 border rounded-md space-y-6">
+          {/* Section for Image Review Feedback - Render if present */}
+          {suggestions.imageReviewFeedback && (
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-2 flex items-center">
+                <MessageSquareQuote className="mr-2 h-5 w-5 text-accent" />AI Image Review Feedback:
+              </h3>
+              <p className="text-sm bg-background p-3 rounded-md whitespace-pre-wrap shadow-sm">
+                {suggestions.imageReviewFeedback}
+              </p>
+              {/* If image review also suggested a new query, it will appear in the 'Suggested Image Query' section below */}
+            </div>
+          )}
+
           {suggestions.suggestedEmoji && (
             <div className="p-4 bg-muted/50 rounded-lg">
               <h3 className="text-lg font-semibold mb-2 flex items-center"><Smile className="mr-2 h-5 w-5 text-accent" />Suggested Emoji:</h3>
@@ -165,6 +184,7 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
             </div>
           )}
 
+          {/* This section handles suggestedImageQuery from EITHER aiTaskAssistant OR reviewTaskImageFlow */}
           {suggestions.suggestedImageQuery && (
             <div className="p-4 bg-muted/50 rounded-lg">
               <h3 className="text-lg font-semibold mb-2 flex items-center"><Wand2 className="mr-2 h-5 w-5 text-accent" />Suggested Image Query:</h3>
@@ -213,11 +233,10 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
           )}
         </ScrollArea>
         <DialogFooter className="gap-2 sm:justify-between pt-4">
-          <Button variant="ghost" onClick={onClose}>Close & Discard Staged</Button>
-          <Button onClick={handleApplyAll} className="bg-primary hover:bg-primary/90 text-primary-foreground">Apply All Staged & Close</Button>
+          <Button variant="ghost" onClick={onClose}>Close &amp; Discard Staged</Button>
+          <Button onClick={handleApplyAll} className="bg-primary hover:bg-primary/90 text-primary-foreground">Apply All Staged &amp; Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
-

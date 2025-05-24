@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -7,14 +6,15 @@ import { Header } from '@/components/layout/Header';
 import { TaskList } from '@/components/TaskList';
 import { TaskForm, type TaskFormData } from '@/components/TaskForm';
 import { TaskFilterControls, type FilterState } from '@/components/TaskFilterControls';
-import { AISuggestionsDialog } from '@/components/AISuggestionsDialog';
+import { AISuggestionsDialog, type AISuggestionsDialogCommonProps } from '@/components/AISuggestionsDialog';
 import { TaskStatsDashboard } from '@/components/TaskStatsDashboard';
 import { DailyMotivation } from '@/components/DailyMotivation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { getAiTaskAssistance, getDailyMotivationalTip } from "@/lib/actions";
+import { getAiTaskAssistance, getDailyMotivationalTip, reviewTaskImage as reviewTaskImageAction } from "@/lib/actions";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
+import type { ReviewTaskImageOutput, ReviewTaskImageInput } from "@/ai/flows/review-task-image-flow";
 import { format } from 'date-fns';
 
 const initialFilters: FilterState = {
@@ -97,8 +97,8 @@ export default function HomePage() {
   const { toast } = useToast();
 
   const [isAiSuggestionsOpen, setIsAiSuggestionsOpen] = useState(false);
-  const [rawAiOutputForDialog, setRawAiOutputForDialog] = useState<AiTaskAssistantOutput | null>(null);
-  const [stagedAiSuggestionsForSave, setStagedAiSuggestionsForSave] = useState<Partial<AiTaskAssistantOutput> | null>(null);
+  const [rawAiOutputForDialog, setRawAiOutputForDialog] = useState<AISuggestionsDialogCommonProps['suggestions']>(null);
+  const [stagedAiSuggestionsForSave, setStagedAiSuggestionsForSave] = useState<Partial<AiTaskAssistantOutput & { imageReviewFeedback?: string } > | null>(null);
   const [imageQueryForForm, setImageQueryForForm] = useState<string | null>(null);
   const [stagedEmojiForForm, setStagedEmojiForForm] = useState<string | null>(null);
   const [taskOfTheDayId, setTaskOfTheDayId] = useState<string | null>(null);
@@ -269,7 +269,6 @@ export default function HomePage() {
         const firstPart = titleParts[0];
         // Check if the first part is an emoji and its length is appropriate (1 or 2 for complex emojis)
         if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { 
-            // It's likely an emoji, potentially with a ZWJ or skin tone modifier
             setStagedEmojiForForm(firstPart);
         }
     }
@@ -296,10 +295,8 @@ export default function HomePage() {
       imageUrl: data.imageUrl || undefined,
     };
     
-    // Initialize with form data, which includes the title potentially modified by stagedEmoji in the form.
     let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'| 'dataAiHint'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt' | 'dataAiHint' | 'taskVibe'>> = { ...taskDataFromForm };
         
-    // Apply AI suggestions, potentially overriding form data
     if (stagedAiSuggestionsForSave) {
         if (stagedAiSuggestionsForSave.improvedDescription) {
             finalTaskData.description = stagedAiSuggestionsForSave.improvedDescription;
@@ -313,18 +310,12 @@ export default function HomePage() {
             finalTaskData.subtasks = [...(finalTaskData.subtasks || []), ...newAiSubtasks];
         }
 
-        // Special handling for emoji: ensure it's applied correctly to the title from the form
-        // The form title *should* already reflect the staged emoji if `TaskForm` handles it.
-        // If stagedEmojiForForm exists, the title from `taskDataFromForm` should ideally already have it.
-        // However, if AISuggestionsDialog directly stages an emoji, we need to ensure it's used.
         if (stagedAiSuggestionsForSave.suggestedEmoji && finalTaskData.title) {
             const titleWithoutExistingEmoji = finalTaskData.title.replace(/^\p{Emoji_Presentation}\s*/u, '').trimStart();
             finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${titleWithoutExistingEmoji}`;
         }
 
-
         if (stagedAiSuggestionsForSave.suggestedTagline && finalTaskData.description !== undefined) {
-            // Avoid duplicating tagline if it's already somehow in the description
             if (!finalTaskData.description.includes(stagedAiSuggestionsForSave.suggestedTagline)) {
                 finalTaskData.description = `${finalTaskData.description}\n\n"${stagedAiSuggestionsForSave.suggestedTagline}"`;
             }
@@ -338,17 +329,12 @@ export default function HomePage() {
     if (editingTask) {
       let updatedDataAiHint: string | undefined = editingTask.dataAiHint;
 
-      // If the image URL has changed AND it's not a placeholder, clear the old hint.
       if (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) {
         updatedDataAiHint = undefined; 
       } 
-      // If there's no image URL now, AND AI suggested an image query, use that for the hint.
       else if (!finalTaskData.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
         updatedDataAiHint = stagedAiSuggestionsForSave.suggestedImageQuery.trim().split(' ').slice(0, 2).join(' ');
       }
-      // If image URL was removed and was previously a placeholder, keep the old hint if it exists.
-      // If it was a real image and is now removed, without a new AI query, the hint could be cleared or kept based on preference.
-      // Current logic: only set if AI suggests, or if it's a new image.
       
       const updatedTask: Task = {
         ...editingTask,
@@ -361,7 +347,7 @@ export default function HomePage() {
         tasks.map((t) => (t.id === editingTask.id ? updatedTask : t))
       );
       toast({ title: "Task Updated", description: `"${finalTaskData.title}" has been updated.` });
-    } else { // Creating a new task
+    } else { 
       const baseNewTask = {
         ...finalTaskData,
         id: crypto.randomUUID(),
@@ -372,15 +358,14 @@ export default function HomePage() {
 
       let taskSpecificDataAiHint: string | undefined = undefined;
 
-      // If there's no image URL, AND AI suggested an image query, use that for the hint.
       if (!baseNewTask.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
         taskSpecificDataAiHint = stagedAiSuggestionsForSave.suggestedImageQuery.trim().split(' ').slice(0, 2).join(' ');
       }
       
       const newTask: Task = {
         ...baseNewTask,
-        description: baseNewTask.description || "", // Ensure description is always a string
-        dataAiHint: taskSpecificDataAiHint, // Apply the hint determined above
+        description: baseNewTask.description || "",
+        dataAiHint: taskSpecificDataAiHint,
       };
 
       setTasks([newTask, ...tasks]);
@@ -448,7 +433,7 @@ export default function HomePage() {
     }
   };
   
- const handleGetAiSuggestions = async (aiInput: AiTaskFormInput) => {
+ const handleGetAiTaskSuggestions = async (aiInput: AiTaskFormInput) => {
     const result = await getAiTaskAssistance({
         ...aiInput,
         dueDate: aiInput.dueDate || "",
@@ -456,8 +441,8 @@ export default function HomePage() {
         imageUrl: aiInput.imageUrl || undefined,
     });
     if (result && !('error' in result)) {
-        setRawAiOutputForDialog(result); // Store the raw output
-        openAiSuggestionsDialog(result);
+        setRawAiOutputForDialog(result);
+        setIsAiSuggestionsOpen(true);
     } else if (result && 'error' in result) {
         toast({
             variant: "destructive",
@@ -467,26 +452,44 @@ export default function HomePage() {
     }
     return result;
   };
-  
-  const openAiSuggestionsDialog = (suggestions: AiTaskAssistantOutput) => {
-    // rawAiOutputForDialog is already set by handleGetAiSuggestions
-    setIsAiSuggestionsOpen(true);
+
+  const handleReviewImage = async (imageUrl: string, title: string, description?: string) => {
+    const reviewInput: ReviewTaskImageInput = {
+      imageUrl,
+      taskTitle: title,
+      taskDescription: description,
+    };
+    const result = await reviewTaskImageAction(reviewInput);
+
+    if (result && !('error' in result)) {
+      const dialogPayload: AISuggestionsDialogCommonProps['suggestions'] = {
+        approachSuggestions: [],
+        improvedDescription: '',
+        generatedSubtasks: [],
+        imageReviewFeedback: result.feedback,
+        suggestedImageQuery: result.suggestedImageQuery,
+      };
+      setRawAiOutputForDialog(dialogPayload);
+      setIsAiSuggestionsOpen(true);
+    } else if (result && 'error' in result) {
+      toast({
+        variant: "destructive",
+        title: "AI Image Review Error",
+        description: result.error,
+      });
+    }
   };
   
-  const handleApplyAiSuggestions = (appliedSuggestions: Partial<AiTaskAssistantOutput>) => {
-    // This function now merges with existing staged suggestions
+  const handleApplyAiSuggestions = (appliedSuggestions: Partial<AiTaskAssistantOutput & { imageReviewFeedback?: string }>) => {
     setStagedAiSuggestionsForSave(prevStaged => {
         const updatedStaged = { ...prevStaged, ...appliedSuggestions };
-        // console.log("Staging suggestions for save:", updatedStaged);
         return updatedStaged;
     });
 
-    // If a specific suggestion should directly update the form (like image query or emoji)
     if (appliedSuggestions.suggestedImageQuery) {
       setImageQueryForForm(appliedSuggestions.suggestedImageQuery);
     }
     if (appliedSuggestions.suggestedEmoji) {
-      // This will be used by TaskForm to pre-fill or display the emoji
       setStagedEmojiForForm(appliedSuggestions.suggestedEmoji);
     }
 
@@ -494,16 +497,15 @@ export default function HomePage() {
       title: "AI Suggestion Queued",
       description: "The suggestion has been noted. Save the task to apply it, or use staged elements like the image query for generation.",
     });
-     setIsAiSuggestionsOpen(false); // Close dialog after applying/staging
+     setIsAiSuggestionsOpen(false); 
   };
 
   const handleClearStagedEmoji = () => {
     setStagedEmojiForForm(null);
-    // Also remove it from stagedAiSuggestionsForSave if it's there
     setStagedAiSuggestionsForSave(prev => {
         if (!prev) return null;
-        const { suggestedEmoji, ...rest } = prev; // Destructure to remove suggestedEmoji
-        return Object.keys(rest).length > 0 ? rest : null; // Return null if object becomes empty
+        const { suggestedEmoji, ...rest } = prev; 
+        return Object.keys(rest).length > 0 ? rest : null; 
     });
   };
 
@@ -511,7 +513,7 @@ export default function HomePage() {
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === taskId
-          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } // Clear hint if a real image is added
+          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } 
           : task
       )
     );
@@ -558,7 +560,8 @@ export default function HomePage() {
                     task={editingTask}
                     onSubmit={handleTaskSubmit}
                     onCancel={handleCloseTaskForm}
-                    onGetAiSuggestions={handleGetAiSuggestions}
+                    onGetAiSuggestions={handleGetAiTaskSuggestions}
+                    onReviewImage={handleReviewImage}
                     activeImageQuery={imageQueryForForm}
                     onClearActiveImageQuery={() => setImageQueryForForm(null)}
                     stagedEmoji={stagedEmojiForForm}
@@ -572,11 +575,10 @@ export default function HomePage() {
         <AISuggestionsDialog
             isOpen={isAiSuggestionsOpen}
             onClose={() => setIsAiSuggestionsOpen(false)}
-            suggestions={rawAiOutputForDialog} // Pass the raw output
+            suggestions={rawAiOutputForDialog} 
             onApplySuggestions={handleApplyAiSuggestions}
         />
       )}
     </TooltipProvider>
   );
 }
-

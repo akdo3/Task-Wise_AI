@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { FC } from 'react';
@@ -20,7 +19,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon, Wand2, Lightbulb, Loader2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon, Wand2, Lightbulb, Loader2, SearchCheck } from 'lucide-react';
 import type { Task, Subtask, Priority, AiTaskFormInput } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
@@ -49,6 +48,7 @@ interface TaskFormProps {
   onSubmit: (data: TaskFormData) => void;
   onCancel: () => void;
   onGetAiSuggestions: (data: AiTaskFormInput) => Promise<AiTaskAssistantOutput | { error: string } | undefined>;
+  onReviewImage: (imageUrl: string, title: string, description?: string) => Promise<void>;
   activeImageQuery?: string | null;
   onClearActiveImageQuery: () => void;
   stagedEmoji?: string | null;
@@ -60,6 +60,7 @@ export const TaskForm: FC<TaskFormProps> = ({
   onSubmit, 
   onCancel, 
   onGetAiSuggestions, 
+  onReviewImage,
   activeImageQuery, 
   onClearActiveImageQuery,
   stagedEmoji,
@@ -69,6 +70,7 @@ export const TaskForm: FC<TaskFormProps> = ({
   const [currentTag, setCurrentTag] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isImageGenerating, setIsImageGenerating] = useState(false);
+  const [isImageReviewing, setIsImageReviewing] = useState(false);
   const [isInspireMeLoading, setIsInspireMeLoading] = useState(false);
 
   const {
@@ -102,12 +104,12 @@ export const TaskForm: FC<TaskFormProps> = ({
 
   const watchedTags = watch('tags') || [];
   const currentTitle = watch('title');
+  const currentImageUrl = watch('imageUrl');
   const currentFormTitle = watch('title');
 
 
   useEffect(() => {
     let titleToSet = task?.title || '';
-    // If there's a stagedEmoji, prepend it to the title, ensuring not to duplicate if already present
     if (stagedEmoji) {
       const emojiPattern = /^\p{Emoji_Presentation}\s*/u;
       const currentTitleWithoutEmoji = titleToSet.replace(emojiPattern, '').trimStart();
@@ -115,10 +117,8 @@ export const TaskForm: FC<TaskFormProps> = ({
          titleToSet = `${stagedEmoji} ${currentTitleWithoutEmoji}`;
        }
     } else if (task?.title) {
-      // If no staged emoji, but task title had one, and form state might have cleared it, ensure original is shown
        titleToSet = task.title;
     }
-
 
     reset({
       title: titleToSet,
@@ -131,14 +131,12 @@ export const TaskForm: FC<TaskFormProps> = ({
       delegatedTo: task?.delegatedTo || '',
       imageUrl: task?.imageUrl || '',
     });
-  }, [task, reset, stagedEmoji]); // Rerun when task or stagedEmoji changes
+  }, [task, reset, stagedEmoji]);
 
   useEffect(() => {
-    // Effect to update form title if stagedEmoji changes and form is for a new task or editing.
-    // This ensures the title input reflects the stagedEmoji visually.
     const currentTitleValue = getValues('title');
     let newTitle = currentTitleValue;
-    const emojiPattern = /^\p{Emoji_Presentation}\s*/u; // Regex to match emoji at the start of the string
+    const emojiPattern = /^\p{Emoji_Presentation}\s*/u; 
 
     if (stagedEmoji) {
       const titleWithoutEmoji = currentTitleValue.replace(emojiPattern, '').trimStart();
@@ -146,7 +144,6 @@ export const TaskForm: FC<TaskFormProps> = ({
         newTitle = `${stagedEmoji} ${titleWithoutEmoji}`;
       }
     } else {
-      // If stagedEmoji is cleared, remove any leading emoji from the title
       newTitle = currentTitleValue.replace(emojiPattern, '').trimStart();
     }
     
@@ -154,7 +151,7 @@ export const TaskForm: FC<TaskFormProps> = ({
       setValue('title', newTitle, { shouldValidate: true, shouldDirty: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stagedEmoji, setValue]); // Only re-run if stagedEmoji changes
+  }, [stagedEmoji, setValue]); 
 
 
   const handleAddTag = () => {
@@ -172,8 +169,6 @@ export const TaskForm: FC<TaskFormProps> = ({
   
   const handleFormSubmit = (data: TaskFormData) => {
     let submittedData = { ...data };
-    // Ensure the title submitted includes the staged emoji if present,
-    // or removes leading emoji if stagedEmoji was cleared.
     const emojiPattern = /^\p{Emoji_Presentation}\s*/u;
     if (stagedEmoji) {
       const titleWithoutEmoji = data.title.replace(emojiPattern, '').trimStart();
@@ -189,7 +184,6 @@ export const TaskForm: FC<TaskFormProps> = ({
   const handleAiAssist = async () => {
     const formData = watch(); 
     let currentTitleForAI = formData.title || '';
-    // If a staged emoji is present, ensure the title passed to AI includes it
     const emojiPattern = /^\p{Emoji_Presentation}\s*/u;
     if (stagedEmoji) {
       const titleWithoutEmoji = currentTitleForAI.replace(emojiPattern, '').trimStart();
@@ -197,10 +191,8 @@ export const TaskForm: FC<TaskFormProps> = ({
          currentTitleForAI = `${stagedEmoji} ${titleWithoutEmoji}`;
       }
     } else {
-      // If no staged emoji, ensure title passed to AI does not have one from previous staging
       currentTitleForAI = currentTitleForAI.replace(emojiPattern, '').trimStart();
     }
-
 
     const aiInput: AiTaskFormInput = {
       description: formData.description || currentTitleForAI || "New Task", 
@@ -212,7 +204,7 @@ export const TaskForm: FC<TaskFormProps> = ({
       imageUrl: formData.imageUrl || '',
     };
 
-    if (!aiInput.description && !currentTitleForAI) { // Check against potentially modified currentTitleForAI
+    if (!aiInput.description && !currentTitleForAI) {
         toast({ variant: "destructive", title: "Title or Description Required", description: "Please provide a title or description for AI assistance."});
         return;
     }
@@ -220,6 +212,25 @@ export const TaskForm: FC<TaskFormProps> = ({
     setIsAiLoading(true);
     await onGetAiSuggestions(aiInput); 
     setIsAiLoading(false);
+  };
+
+  const handleTriggerImageReview = async () => {
+    const title = getValues('title');
+    const description = getValues('description');
+    const imageUrl = getValues('imageUrl');
+
+    if (!imageUrl || imageUrl.startsWith('data:') || imageUrl.startsWith('https://placehold.co')) {
+      toast({ variant: "destructive", title: "Invalid Image for Review", description: "Please provide a valid, non-generated external image URL to review."});
+      return;
+    }
+    if (!title) {
+       toast({ variant: "destructive", title: "Title Required", description: "Please provide a task title for image review context."});
+      return;
+    }
+
+    setIsImageReviewing(true);
+    await onReviewImage(imageUrl, title, description);
+    setIsImageReviewing(false);
   };
 
   const handleGenerateImage = async () => {
@@ -249,6 +260,7 @@ export const TaskForm: FC<TaskFormProps> = ({
         title: "Image Generated",
         description: `AI has generated an image ${activeImageQuery ? "using the suggested query." : "for your task."}`,
       });
+      onClearActiveImageQuery(); // Clear query after successful generation
     } else {
       const errorMessage = (result && 'error' in result) ? result.error : "Failed to generate image."
       toast({
@@ -298,7 +310,7 @@ export const TaskForm: FC<TaskFormProps> = ({
       if (result.suggestedSubtasks && result.suggestedSubtasks.length > 0) {
         const currentSubtasks = getValues('subtasks') || [];
         const newAiSubtasks: Subtask[] = result.suggestedSubtasks
-          .slice(0, 10 - currentSubtasks.length) // Respect max 10 subtasks total
+          .slice(0, 10 - currentSubtasks.length) 
           .map(stText => ({
             id: crypto.randomUUID(),
             text: stText,
@@ -306,13 +318,11 @@ export const TaskForm: FC<TaskFormProps> = ({
           }));
         
         if (newAiSubtasks.length > 0) {
-           // Replace existing subtasks if any, or set new ones
-          const allSubtasks = [...currentSubtasks, ...newAiSubtasks].slice(0,10); // ensure we don't exceed total limit
-          replaceSubtasks(allSubtasks); // Use replace to set the whole array
+          const allSubtasks = [...currentSubtasks, ...newAiSubtasks].slice(0,10);
+          replaceSubtasks(allSubtasks); 
           toastMessage += `Subtasks: ${newAiSubtasks.map(s => s.text).join(', ')} added.`;
         }
       }
-
 
       if (toastMessage) {
         toast({
@@ -337,6 +347,7 @@ export const TaskForm: FC<TaskFormProps> = ({
     }
   };
 
+  const canReviewImage = currentImageUrl && !currentImageUrl.startsWith('data:') && !currentImageUrl.startsWith('https://placehold.co');
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-1">
@@ -361,7 +372,7 @@ export const TaskForm: FC<TaskFormProps> = ({
               )}
               <Label htmlFor="title" className="text-sm font-medium">Title</Label>
             </div>
-            {!task && !currentFormTitle && ( // Use currentFormTitle to check if field is empty
+            {!task && !currentFormTitle && (
               <Button 
                 type="button" 
                 variant="ghost" 
@@ -552,6 +563,12 @@ export const TaskForm: FC<TaskFormProps> = ({
                     aria-invalid={errors.imageUrl ? "true" : "false"}
                 />
             </div>
+             {canReviewImage && (
+              <Button type="button" variant="outline" onClick={handleTriggerImageReview} disabled={isImageReviewing || !currentTitle} className="shrink-0">
+                {isImageReviewing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}
+                {isImageReviewing ? 'Reviewing...' : 'AI Review Image'}
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={handleGenerateImage} disabled={isImageGenerating} className="shrink-0">
                  {isImageGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                 {isImageGenerating ? 'Generating...' : (activeImageQuery ? 'Generate with AI Query' : 'Generate Image')}
@@ -583,4 +600,3 @@ export const TaskForm: FC<TaskFormProps> = ({
     </form>
   );
 };
-
