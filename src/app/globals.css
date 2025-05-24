@@ -53,17 +53,6 @@
     --priority-medium-card-bg-subtle: 30 85% 96%;
     --priority-high-card-bg-subtle: 0 80% 96%;
 
-
-    /* Sidebar specific colors */
-    --sidebar-background: 190 30% 96%; /* Very light cool grayish-cyan */
-    --sidebar-foreground: 200 25% 25%;
-    --sidebar-primary: 180 70% 30%; /* Slightly darker teal for sidebar primary */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 190 30% 88%; /* Subtle cool accent for hover */
-    --sidebar-accent-foreground: 200 25% 15%;
-    --sidebar-border: 190 20% 80%;
-    --sidebar-ring: 180 70% 45%;
-
     --chart-1: 180 70% 35%; /* Deep Teal */
     --chart-2: 15 100% 60%; /* Vibrant Coral */
     --chart-3: 200 80% 55%; /* Medium Sky Blue */
@@ -118,16 +107,6 @@
     --priority-medium-card-bg-subtle-dark: 30 45% 16%;
     --priority-high-card-bg-subtle-dark: 0 45% 16%;
 
-    /* Sidebar specific colors - Dark Theme */
-    --sidebar-background: 200 30% 8%; /* Slightly darker than main dark bg */
-    --sidebar-foreground: 200 15% 90%;
-    --sidebar-primary: 180 70% 40%; /* Teal for sidebar */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 190 25% 15%; /* Darker subtle cool accent */
-    --sidebar-accent-foreground: 200 15% 85%;
-    --sidebar-border: 190 20% 22%;
-    --sidebar-ring: 180 70% 50%;
-
     --chart-1: 180 70% 45%; /* Brighter Teal */
     --chart-2: 15 100% 65%; /* Brighter Coral */
     --chart-3: 200 70% 60%; /* Brighter Sky Blue */
@@ -172,4 +151,26 @@
   .scrollbar-track-transparent::-webkit-scrollbar-track {
     background: transparent;
   }
+}
+
+/* Confetti Animation */
+@keyframes confetti-fall-effect {
+  0% {
+    opacity: 1;
+    transform: translateY(-10px) rotateZ(0deg) scale(0.8); /* Start slightly above and smaller */
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(60px) rotateZ(180deg) scale(0.2); /* Fall further down and shrink */
+  }
+}
+
+.confetti-particle {
+  position: absolute;
+  border-radius: 50%;
+  animation-name: confetti-fall-effect;
+  animation-duration: 0.8s;
+  animation-timing-function: cubic-bezier(0.1, 0.8, 0.7, 1); /* Smoother easing */
+  animation-fill-mode: forwards;
+  pointer-events: none;
 }

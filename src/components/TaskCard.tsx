@@ -2,6 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
+import { useState } from 'react'; // Added useState for celebration
 import Image from 'next/image';
 import type { Task, Priority } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -46,6 +47,7 @@ const priorityCardBgClasses: Record<Priority, string> = {
 
 
 export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSubtask, onToggleComplete }) => {
+  const [isCelebrating, setIsCelebrating] = useState(false);
   const completedSubtasks = task.subtasks.filter(st => st.completed).length;
   const totalSubtasks = task.subtasks.length;
   const badgeClasses = priorityBadgeClassConfig[task.priority];
@@ -54,22 +56,32 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
   const displayImageUrl = task.imageUrl || 'https://placehold.co/600x400.png';
   const displayImageHint = task.dataAiHint || (task.imageUrl ? 'task visual context' : 'placeholder image');
 
+  const handleToggleCompleteAndCelebrate = () => {
+    if (!task.completed) { // Only celebrate when marking as complete
+      setIsCelebrating(true);
+      setTimeout(() => setIsCelebrating(false), 800); // Duration of confetti animation
+    }
+    onToggleComplete(task.id);
+  };
+
   return (
     <Card className={cn(
       "animate-fade-in-up shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out flex flex-col h-full text-card-foreground rounded-[var(--radius)] border hover:border-[hsl(var(--primary))]",
       cardBgClass,
       task.completed && "opacity-60 dark:opacity-50 bg-muted/30 dark:bg-muted/20 hover:opacity-100"
       )}>
-      <div className={cn("relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden", task.completed && "grayscale")}>
-        <Image
-          src={displayImageUrl}
-          alt={`Image for ${task.title}`}
-          layout="fill"
-          objectFit="cover"
-          data-ai-hint={displayImageHint}
-        />
-      </div>
-      <CardHeader className={cn("pb-3 pt-4")}>
+      {task.imageUrl && (
+         <div className={cn("relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden", task.completed && "grayscale")}>
+            <Image
+              src={displayImageUrl}
+              alt={`Image for ${task.title}`}
+              layout="fill"
+              objectFit="cover"
+              data-ai-hint={displayImageHint}
+            />
+        </div>
+      )}
+      <CardHeader className={cn("pb-3 pt-4", !task.imageUrl && "pt-6")}>
         <div className="flex justify-between items-start">
           <CardTitle className={cn("text-lg font-semibold leading-tight", task.completed && "line-through text-muted-foreground")}>{task.title}</CardTitle>
           <Badge
@@ -141,14 +153,32 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => onToggleComplete(task.id)}
+              onClick={handleToggleCompleteAndCelebrate}
               className={cn(
-                "text-muted-foreground",
+                "relative text-muted-foreground", // Added relative for confetti positioning
                 task.completed ? "hover:text-yellow-500 dark:hover:text-yellow-400" : "hover:text-green-500 dark:hover:text-green-400"
               )}
             >
               {task.completed ? <Circle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
               <span className="sr-only">{task.completed ? 'Mark as Incomplete' : 'Mark as Complete'}</span>
+              {isCelebrating && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-visible">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="confetti-particle"
+                      style={{
+                        background: `hsl(${Math.random() * 360}, 100%, 70%)`,
+                        // Randomize initial position slightly around the center
+                        transform: `translate(${Math.random() * 50 - 25}px, ${Math.random() * 50 - 25}px) rotate(${Math.random() * 360}deg) scale(0)`, // Start scaled down
+                        animationDelay: `${Math.random() * 0.05}s`, // Stagger start
+                        width: `${Math.random() * 5 + 3}px`, // Random size
+                        height: `${Math.random() * 5 + 3}px`, // Random size
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>{task.completed ? 'Mark as Incomplete' : 'Mark as Complete'}</TooltipContent>

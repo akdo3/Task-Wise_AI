@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Task, Subtask, AiTaskFormInput } from '@/types';
-import { AppLayout } from '@/components/layout/AppLayout'; // Changed import
+import { Header } from '@/components/layout/Header'; // Restored Header import
 import { TaskList } from '@/components/TaskList';
 import { TaskForm, type TaskFormData } from '@/components/TaskForm';
 import { TaskFilterControls, type FilterState } from '@/components/TaskFilterControls';
@@ -77,7 +77,7 @@ const sampleTasks: Task[] = [
     tags: ['health', 'personal'],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    dataAiHint: 'medical health', // No imageUrl, uses dataAiHint
+    dataAiHint: 'medical health', 
     completed: true,
     completedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
   },
@@ -365,7 +365,8 @@ export default function HomePage() {
 
   return (
     <TooltipProvider delayDuration={100}>
-      <AppLayout onAddTask={() => handleOpenTaskForm()}>
+      <div className="flex flex-col min-h-screen bg-background">
+        <Header onAddTask={() => handleOpenTaskForm()} />
         <main className="flex-grow container mx-auto px-4 py-12">
           <TaskStatsDashboard tasks={tasks} />
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
@@ -377,11 +378,10 @@ export default function HomePage() {
             onToggleTaskComplete={handleToggleTaskComplete}
           />
         </main>
-
-        <footer className="text-center py-6 text-xs text-muted-foreground border-t mt-auto">
+        <footer className="text-center py-6 text-xs text-muted-foreground border-t">
           &copy; {new Date().getFullYear()} TaskWise AI. Crafted with focus.
         </footer>
-      </AppLayout>
+      </div>
 
       <Dialog open={isTaskFormOpen} onOpenChange={(isOpen) => { if(!isOpen) handleCloseTaskForm(); else setIsTaskFormOpen(true);}}>
         <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col rounded-[var(--radius)]">
