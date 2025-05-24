@@ -8,6 +8,7 @@ import type { Task, Priority } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress'; // Added import
 import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle, Wand2, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, parseISO } from 'date-fns';
@@ -57,6 +58,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
 
   const completedSubtasks = task.subtasks.filter(st => st.completed).length;
   const totalSubtasks = task.subtasks.length;
+  const subtaskProgressPercentage = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
   const badgeClasses = priorityBadgeClassConfig[task.priority];
   const cardBgClass = priorityCardBgClasses[task.priority];
 
@@ -107,7 +109,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
     <Card className={cn(
       "animate-fade-in-up shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out flex flex-col h-full text-card-foreground rounded-[var(--radius)] border hover:border-[hsl(var(--primary))]",
       cardBgClass,
-      task.completed && "opacity-60 dark:opacity-50 bg-muted/30 dark:bg-muted/20 hover:opacity-100",
+      task.completed && "opacity-60 dark:opacity-50 bg-muted/30 dark:bg-muted/20 hover:opacity-100 grayscale",
       task.priority === 'high' && !task.completed && "high-priority-glow-effect"
       )}>
       <div className={cn("relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden", task.completed && "grayscale")}>
@@ -154,7 +156,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
           </Badge>
         </div>
         {task.description && (
-          <CardDescription className={cn("text-sm text-muted-foreground line-clamp-3 pt-1 whitespace-pre-wrap", task.completed && "line-through")}>{task.description}</CardDescription>
+          <CardDescription className={cn("text-sm text-muted-foreground line-clamp-3 pt-1 whitespace-pre-wrap", task.completed && "line-through opacity-70")}>{task.description}</CardDescription>
         )}
       </CardHeader>
       <CardContent className="flex-grow space-y-2.5 text-sm">
@@ -165,19 +167,19 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
           </div>
         )}
         {task.dueDate && (
-          <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through")}>
+          <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through opacity-70")}>
             <CalendarDays className="h-3.5 w-3.5 mr-2" />
             Due: {format(new Date(task.dueDate), 'MMM d, yyyy')}
           </div>
         )}
         {task.reminderDate && (
-          <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through")}>
+          <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through opacity-70")}>
             <Repeat className="h-3.5 w-3.5 mr-2" />
             Reminder: {format(new Date(task.reminderDate), 'MMM d, yyyy')}
           </div>
         )}
         {task.delegatedTo && (
-          <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through")}>
+          <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through opacity-70")}>
             <UserCheck className="h-3.5 w-3.5 mr-2" />
             Delegated to: {task.delegatedTo}
           </div>
@@ -191,7 +193,8 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
         )}
         {task.subtasks.length > 0 && (
            <div className={cn("pt-2", task.completed && "opacity-70")}>
-             <h4 className="text-xs font-medium text-muted-foreground mb-1.5">SUBTASKS ({completedSubtasks}/{totalSubtasks})</h4>
+             <h4 className="text-xs font-medium text-muted-foreground">SUBTASKS ({completedSubtasks}/{totalSubtasks})</h4>
+             <Progress value={subtaskProgressPercentage} className="h-1.5 w-full mt-1 mb-1.5" aria-label={`${subtaskProgressPercentage.toFixed(0)}% of subtasks complete`} />
              <ul className="space-y-1 max-h-28 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent pr-1">
                {task.subtasks.map(subtask => (
                  <li key={subtask.id} className="flex items-center text-sm cursor-pointer hover:bg-muted/50 p-1.5 rounded-md" onClick={() => !task.completed && onToggleSubtask(task.id, subtask.id)}>
@@ -260,3 +263,5 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
     </Card>
   );
 };
+
+    
