@@ -12,7 +12,7 @@ import { DailyMotivation } from '@/components/DailyMotivation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { getAiTaskAssistance, getDailyMotivationalTip, reviewTaskImage as reviewTaskImageAction } from "@/lib/actions";
+import { getAiTaskAssistance, getDailyMotivationalTip, reviewTaskImage as reviewTaskImageAction, generateImageForTask as generateImageAction, suggestRandomTask as suggestRandomTaskAction } from "@/lib/actions";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
 import type { ReviewTaskImageOutput, ReviewTaskImageInput } from "@/ai/flows/review-task-image-flow";
 import { format } from 'date-fns';
@@ -80,7 +80,7 @@ const sampleTasks: Task[] = [
     tags: ['health', 'personal'],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    dataAiHint: 'medical health', // No imageUrl, placeholder will use this hint
+    dataAiHint: 'medical health', 
     taskVibe: "Health Check",
     completed: true,
     completedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
@@ -124,7 +124,6 @@ export default function HomePage() {
       setTasks(sampleTasks.map(t => ({ ...t, completed: t.completed || false })));
     }
 
-    // Fetch daily motivation
     const today = new Date().toDateString();
     const storedMotivationString = localStorage.getItem('dailyMotivation');
     if (storedMotivationString) {
@@ -143,7 +142,7 @@ export default function HomePage() {
       fetchNewMotivation(today);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array means this runs once on mount
+  }, []); 
 
   const fetchNewMotivation = async (currentDate: string) => {
     setIsLoadingMotivation(true);
@@ -153,7 +152,6 @@ export default function HomePage() {
       setDailyMotivation(newMotivation);
       localStorage.setItem('dailyMotivation', JSON.stringify(newMotivation));
     } else {
-      // Handle error or no tip case, maybe set a default or clear previous
       console.error("Failed to fetch daily motivation:", result && 'error' in result ? result.error : "Unknown error");
     }
     setIsLoadingMotivation(false);
@@ -162,8 +160,9 @@ export default function HomePage() {
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
     applyFilters();
-    // Logic for selecting "Task of the Day"
-    if (tasks.length === 0) {
+    
+    const incompleteTasks = tasks.filter((t) => !t.completed);
+    if (incompleteTasks.length === 0) {
       setTaskOfTheDayId(null);
       localStorage.removeItem('taskOfTheDay');
       return;
@@ -177,12 +176,13 @@ export default function HomePage() {
       try {
         const storedTaskOfTheDay: { id: string; date: string } = JSON.parse(storedTaskOfTheDayString);
         const taskStillExistsAndValid = tasks.find(
-          (t) => t.id === storedTaskOfTheDay.id && !t.completed
+          (t) => t.id === storedTaskOfTheDay.id && !t.completed // Focus task must be incomplete
         );
         if (storedTaskOfTheDay.date === today && taskStillExistsAndValid) {
           currentFocusTaskId = storedTaskOfTheDay.id;
         } else {
-          localStorage.removeItem('taskOfTheDay');
+          // Stored task is either completed, deleted, or for a previous day
+          localStorage.removeItem('taskOfTheDay'); 
         }
       } catch (e) {
         console.error("Error parsing task of the day from localStorage", e);
@@ -190,9 +190,7 @@ export default function HomePage() {
       }
     }
 
-    if (!currentFocusTaskId) {
-      const incompleteTasks = tasks.filter((t) => !t.completed);
-      if (incompleteTasks.length > 0) {
+    if (!currentFocusTaskId) { // No valid focus task from storage, or it was cleared
         let candidates = incompleteTasks.filter(t => t.priority === 'high');
         if (candidates.length === 0) {
           candidates = incompleteTasks.filter(t => t.priority === 'medium');
@@ -200,7 +198,7 @@ export default function HomePage() {
         if (candidates.length === 0) {
           candidates = incompleteTasks.filter(t => t.priority === 'low');
         }
-        if (candidates.length === 0) { // Fallback if no prioritized tasks or priorities are not set
+        if (candidates.length === 0) { 
             candidates = incompleteTasks;
         }
         
@@ -212,11 +210,10 @@ export default function HomePage() {
               JSON.stringify({ id: currentFocusTaskId, date: today })
             );
         }
-      }
     }
     setTaskOfTheDayId(currentFocusTaskId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks]); // Rerun when tasks array changes
+  }, [tasks]); 
 
   const applyFilters = useCallback(() => {
     let tempTasks = [...tasks];
@@ -251,7 +248,6 @@ export default function HomePage() {
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
       }
-      // Sort focused task to the top if it's in the filtered list
       if (taskOfTheDayId) {
         if (a.id === taskOfTheDayId) return -1;
         if (b.id === taskOfTheDayId) return 1;
@@ -267,7 +263,6 @@ export default function HomePage() {
     if (task) {
         const titleParts = task.title.split(" ");
         const firstPart = titleParts[0];
-        // Check if the first part is an emoji and its length is appropriate (1 or 2 for complex emojis)
         if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { 
             setStagedEmojiForForm(firstPart);
         }
@@ -566,6 +561,8 @@ export default function HomePage() {
                     onClearActiveImageQuery={() => setImageQueryForForm(null)}
                     stagedEmoji={stagedEmojiForForm}
                     onClearStagedEmoji={handleClearStagedEmoji}
+                    generateImageAction={generateImageAction}
+                    suggestRandomTaskAction={suggestRandomTaskAction}
                 />
             </div>
         </DialogContent>

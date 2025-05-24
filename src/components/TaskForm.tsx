@@ -23,7 +23,9 @@ import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon, Wand
 import type { Task, Subtask, Priority, AiTaskFormInput } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
-import { generateImageForTask as generateImageAction, suggestRandomTask as suggestRandomTaskAction } from '@/lib/actions'; 
+import type { GenerateTaskImageInput, GenerateTaskImageOutput } from "@/ai/flows/generate-task-image-flow";
+import type { SuggestRandomTaskOutput } from "@/ai/flows/suggest-random-task-flow";
+
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
@@ -53,6 +55,8 @@ interface TaskFormProps {
   onClearActiveImageQuery: () => void;
   stagedEmoji?: string | null;
   onClearStagedEmoji: () => void;
+  generateImageAction: (input: GenerateTaskImageInput) => Promise<GenerateTaskImageOutput | { error: string }>;
+  suggestRandomTaskAction: () => Promise<SuggestRandomTaskOutput | { error: string }>;
 }
 
 export const TaskForm: FC<TaskFormProps> = ({ 
@@ -64,7 +68,9 @@ export const TaskForm: FC<TaskFormProps> = ({
   activeImageQuery, 
   onClearActiveImageQuery,
   stagedEmoji,
-  onClearStagedEmoji 
+  onClearStagedEmoji,
+  generateImageAction: passedGenerateImageAction, // Renamed to avoid conflict
+  suggestRandomTaskAction: passedSuggestRandomTaskAction, // Renamed
 }) => {
   const { toast } = useToast();
   const [currentTag, setCurrentTag] = useState('');
@@ -247,7 +253,7 @@ export const TaskForm: FC<TaskFormProps> = ({
     }
 
     setIsImageGenerating(true);
-    const result = await generateImageAction({ 
+    const result = await passedGenerateImageAction({ 
         taskTitle: currentTitleValue, 
         taskDescription: currentDescription,
         imageQuery: activeImageQuery || undefined 
@@ -260,7 +266,7 @@ export const TaskForm: FC<TaskFormProps> = ({
         title: "Image Generated",
         description: `AI has generated an image ${activeImageQuery ? "using the suggested query." : "for your task."}`,
       });
-      onClearActiveImageQuery(); // Clear query after successful generation
+      onClearActiveImageQuery(); 
     } else {
       const errorMessage = (result && 'error' in result) ? result.error : "Failed to generate image."
       toast({
@@ -273,7 +279,7 @@ export const TaskForm: FC<TaskFormProps> = ({
 
   const handleInspireMe = async () => {
     setIsInspireMeLoading(true);
-    const result = await suggestRandomTaskAction();
+    const result = await passedSuggestRandomTaskAction();
     setIsInspireMeLoading(false);
 
     if (result && !('error' in result)) {
@@ -570,7 +576,7 @@ export const TaskForm: FC<TaskFormProps> = ({
               </Button>
             )}
             <Button type="button" variant="outline" onClick={handleGenerateImage} disabled={isImageGenerating} className="shrink-0">
-                 {isImageGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                 {isImageGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 animate-pulse" />}
                 {isImageGenerating ? 'Generating...' : (activeImageQuery ? 'Generate with AI Query' : 'Generate Image')}
             </Button>
         </div>
