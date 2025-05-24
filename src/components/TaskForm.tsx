@@ -24,7 +24,7 @@ import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon, Wand
 import type { Task, Subtask, Priority, AiTaskFormInput } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
-import { generateImageForTask as generateImageAction, suggestRandomTaskTitle as suggestRandomTaskTitleAction } from '@/lib/actions'; 
+import { generateImageForTask as generateImageAction, suggestRandomTask as suggestRandomTaskAction } from '@/lib/actions'; 
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
@@ -211,12 +211,23 @@ export const TaskForm: FC<TaskFormProps> = ({
 
   const handleInspireMe = async () => {
     setIsInspireMeLoading(true);
-    const result = await suggestRandomTaskTitleAction();
+    const result = await suggestRandomTaskAction();
     setIsInspireMeLoading(false);
 
-    if (result && !('error' in result) && result.suggestedTitle) {
-      setValue('title', result.suggestedTitle, { shouldValidate: true });
-      let toastMessage = `"${result.suggestedTitle}" has been added to the title.`;
+    if (result && !('error' in result)) {
+      let toastMessage = "";
+      if (result.suggestedTitle) {
+        setValue('title', result.suggestedTitle, { shouldValidate: true });
+        toastMessage += `Suggested title: "${result.suggestedTitle}". `;
+      }
+      if (result.suggestedDescription) {
+        setValue('description', result.suggestedDescription, { shouldValidate: true });
+         toastMessage += `Description added. `;
+      }
+      if (result.suggestedPriority) {
+        setValue('priority', result.suggestedPriority, { shouldValidate: true });
+         toastMessage += `Priority set to ${result.suggestedPriority}. `;
+      }
 
       if (result.suggestedTags && result.suggestedTags.length > 0) {
         const currentTags = getValues('tags') || [];
@@ -225,17 +236,26 @@ export const TaskForm: FC<TaskFormProps> = ({
         );
         
         if (newTagsToAdd.length > 0) {
-          const finalNewTags = newTagsToAdd.slice(0, 5 - currentTags.length); // Ensure we don't exceed 5 tags
+          const finalNewTags = newTagsToAdd.slice(0, 5 - currentTags.length);
           setValue('tags', [...currentTags, ...finalNewTags]);
           if (finalNewTags.length > 0) {
-             toastMessage += ` Suggested tags: ${finalNewTags.join(', ')} added.`;
+             toastMessage += `Tags: ${finalNewTags.join(', ')} added.`;
           }
         }
       }
-      toast({
-        title: "Task Idea Suggested!",
-        description: toastMessage,
-      });
+      if (toastMessage) {
+        toast({
+          title: "Task Idea Sparked!",
+          description: toastMessage.trim(),
+        });
+      } else if (!result.suggestedTitle) {
+         toast({
+            variant: "default",
+            title: "AI Suggestion",
+            description: "The AI couldn't come up with a title this time, try again!",
+        });
+      }
+
     } else {
       const errorMessage = (result && 'error' in result) ? result.error : "Failed to get a task suggestion.";
       toast({
@@ -280,7 +300,7 @@ export const TaskForm: FC<TaskFormProps> = ({
                 className="text-xs text-accent hover:text-accent/80"
               >
                 {isInspireMeLoading ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin animate-pulse" />
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
                 )}
@@ -492,3 +512,4 @@ export const TaskForm: FC<TaskFormProps> = ({
     </form>
   );
 };
+

@@ -3,7 +3,7 @@
 
 import { aiTaskAssistant, type AiTaskAssistantInput, type AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
 import { generateTaskImage, type GenerateTaskImageInput, type GenerateTaskImageOutput } from "@/ai/flows/generate-task-image-flow";
-import { suggestRandomTaskTitle as suggestRandomTaskTitleFlow, type SuggestRandomTaskOutput } from "@/ai/flows/suggest-random-task-flow";
+import { suggestRandomTask as suggestRandomTaskFlow, type SuggestRandomTaskOutput } from "@/ai/flows/suggest-random-task-flow"; // Renamed import
 import { getDailyMotivationalTipFlow, type DailyMotivationalTipOutput } from "@/ai/flows/daily-motivation-flow";
 
 export async function getAiTaskAssistance(input: AiTaskAssistantInput): Promise<AiTaskAssistantOutput | { error: string }> {
@@ -32,13 +32,13 @@ export async function generateImageForTask(input: GenerateTaskImageInput): Promi
   }
 }
 
-export async function suggestRandomTaskTitle(): Promise<SuggestRandomTaskOutput | { error: string }> {
+export async function suggestRandomTask(): Promise<SuggestRandomTaskOutput | { error: string }> { // Renamed function
   try {
-    const result = await suggestRandomTaskTitleFlow();
+    const result = await suggestRandomTaskFlow();
     return result;
   } catch (error) {
-    console.error("Error calling suggest random task title flow:", error);
-    return { error: error instanceof Error ? error.message : "An unknown error occurred during task title suggestion" };
+    console.error("Error calling suggest random task flow:", error);
+    return { error: error instanceof Error ? error.message : "An unknown error occurred during task suggestion" };
   }
 }
 
@@ -51,3 +51,4 @@ export async function getDailyMotivationalTip(): Promise<DailyMotivationalTipOut
     return { error: error instanceof Error ? error.message : "An unknown error occurred when fetching daily motivation" };
   }
 }
+
