@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -8,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle } from 'lucide-react';
 import Image from 'next/image';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
   task: Task;
@@ -16,18 +18,31 @@ interface TaskCardProps {
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
 }
 
-const priorityColors: Record<Priority, string> = {
-  low: 'bg-green-500/20 text-green-700 border-green-500/30',
-  medium: 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30',
-  high: 'bg-red-500/20 text-red-700 border-red-500/30',
+const priorityClassConfig: Record<Priority, { bg: string; text: string; border: string }> = {
+  low: {
+    bg: 'bg-[hsl(var(--priority-low-bg-hsl))]',
+    text: 'text-[hsl(var(--priority-low-fg-hsl))]',
+    border: 'border-[hsl(var(--priority-low-border-hsl))]',
+  },
+  medium: {
+    bg: 'bg-[hsl(var(--priority-medium-bg-hsl))]',
+    text: 'text-[hsl(var(--priority-medium-fg-hsl))]',
+    border: 'border-[hsl(var(--priority-medium-border-hsl))]',
+  },
+  high: {
+    bg: 'bg-[hsl(var(--priority-high-bg-hsl))]',
+    text: 'text-[hsl(var(--priority-high-fg-hsl))]',
+    border: 'border-[hsl(var(--priority-high-border-hsl))]',
+  },
 };
 
 export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSubtask }) => {
   const completedSubtasks = task.subtasks.filter(st => st.completed).length;
   const totalSubtasks = task.subtasks.length;
+  const priorityClasses = priorityClassConfig[task.priority];
 
   return (
-    <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
+    <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full bg-card text-card-foreground">
       <CardHeader>
         {task.imageUrl && (
           <div className="relative w-full h-40 rounded-t-lg overflow-hidden mb-4">
@@ -36,7 +51,16 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
         )}
         <div className="flex justify-between items-start">
           <CardTitle className="text-xl font-semibold">{task.title}</CardTitle>
-          <Badge className={`capitalize ${priorityColors[task.priority]}`}>{task.priority}</Badge>
+          <Badge 
+            className={cn(
+              "capitalize",
+              priorityClasses.bg,
+              priorityClasses.text,
+              priorityClasses.border
+            )}
+          >
+            {task.priority}
+          </Badge>
         </div>
         <CardDescription className="text-muted-foreground line-clamp-2">{task.description}</CardDescription>
       </CardHeader>
@@ -69,11 +93,11 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
         {task.subtasks.length > 0 && (
            <div className="mt-3">
              <h4 className="text-sm font-medium mb-1">Subtasks ({completedSubtasks}/{totalSubtasks})</h4>
-             <ul className="space-y-1 max-h-24 overflow-y-auto">
+             <ul className="space-y-1 max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
                {task.subtasks.map(subtask => (
-                 <li key={subtask.id} className="flex items-center text-sm cursor-pointer hover:bg-muted p-1 rounded" onClick={() => onToggleSubtask(task.id, subtask.id)}>
-                   {subtask.completed ? <CheckCircle className="h-4 w-4 mr-2 text-green-500" /> : <Circle className="h-4 w-4 mr-2 text-gray-400" />}
-                   <span className={subtask.completed ? 'line-through text-muted-foreground' : ''}>{subtask.text}</span>
+                 <li key={subtask.id} className="flex items-center text-sm cursor-pointer hover:bg-muted/50 p-1 rounded" onClick={() => onToggleSubtask(task.id, subtask.id)}>
+                   {subtask.completed ? <CheckCircle className="h-4 w-4 mr-2 text-accent" /> : <Circle className="h-4 w-4 mr-2 text-muted-foreground/70" />}
+                   <span className={cn(subtask.completed ? 'line-through text-muted-foreground' : 'text-foreground')}>{subtask.text}</span>
                  </li>
                ))}
              </ul>
@@ -91,3 +115,4 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
     </Card>
   );
 };
+
