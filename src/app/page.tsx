@@ -97,6 +97,7 @@ export default function HomePage() {
   const [stagedAiSuggestionsForSave, setStagedAiSuggestionsForSave] = useState<Partial<AiTaskAssistantOutput> | null>(null);
   const [imageQueryForForm, setImageQueryForForm] = useState<string | null>(null);
   const [stagedEmojiForForm, setStagedEmojiForForm] = useState<string | null>(null);
+  const [taskOfTheDayId, setTaskOfTheDayId] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -121,8 +122,61 @@ export default function HomePage() {
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
     applyFilters();
+    // Logic for selecting "Task of the Day"
+    if (tasks.length === 0) {
+      setTaskOfTheDayId(null);
+      localStorage.removeItem('taskOfTheDay');
+      return;
+    }
+
+    const today = new Date().toDateString();
+    const storedTaskOfTheDayString = localStorage.getItem('taskOfTheDay');
+    let currentFocusTaskId: string | null = null;
+
+    if (storedTaskOfTheDayString) {
+      try {
+        const storedTaskOfTheDay: { id: string; date: string } = JSON.parse(storedTaskOfTheDayString);
+        const taskStillExistsAndValid = tasks.find(
+          (t) => t.id === storedTaskOfTheDay.id && !t.completed
+        );
+        if (storedTaskOfTheDay.date === today && taskStillExistsAndValid) {
+          currentFocusTaskId = storedTaskOfTheDay.id;
+        } else {
+          localStorage.removeItem('taskOfTheDay');
+        }
+      } catch (e) {
+        console.error("Error parsing task of the day from localStorage", e);
+        localStorage.removeItem('taskOfTheDay');
+      }
+    }
+
+    if (!currentFocusTaskId) {
+      const incompleteTasks = tasks.filter((t) => !t.completed);
+      if (incompleteTasks.length > 0) {
+        let candidates = incompleteTasks.filter(t => t.priority === 'high');
+        if (candidates.length === 0) {
+          candidates = incompleteTasks.filter(t => t.priority === 'medium');
+        }
+        if (candidates.length === 0) {
+          candidates = incompleteTasks.filter(t => t.priority === 'low');
+        }
+        if (candidates.length === 0) { // Fallback if no prioritized tasks or priorities are not set
+            candidates = incompleteTasks;
+        }
+        
+        if (candidates.length > 0) {
+            const randomIndex = Math.floor(Math.random() * candidates.length);
+            currentFocusTaskId = candidates[randomIndex].id;
+            localStorage.setItem(
+              'taskOfTheDay',
+              JSON.stringify({ id: currentFocusTaskId, date: today })
+            );
+        }
+      }
+    }
+    setTaskOfTheDayId(currentFocusTaskId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, filters]);
+  }, [tasks]); // Rerun when tasks array changes
 
   const applyFilters = useCallback(() => {
     let tempTasks = [...tasks];
@@ -157,9 +211,14 @@ export default function HomePage() {
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
       }
+      // Sort focused task to the top if it's in the filtered list
+      if (taskOfTheDayId) {
+        if (a.id === taskOfTheDayId) return -1;
+        if (b.id === taskOfTheDayId) return 1;
+      }
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }));
-  }, [tasks, filters]);
+  }, [tasks, filters, taskOfTheDayId]);
 
 
   const handleOpenTaskForm = (task: Task | null = null) => {
@@ -225,14 +284,11 @@ export default function HomePage() {
       let updatedDataAiHint: string | undefined = editingTask.dataAiHint;
 
       if (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) {
-        // A new, specific image URL was provided or generated, so clear the AI hint.
         updatedDataAiHint = undefined;
       } else if (!finalTaskData.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
-        // No image URL is set (or it's a placeholder), AND AI suggested an image query. Use it for the hint.
         updatedDataAiHint = stagedAiSuggestionsForSave.suggestedImageQuery.trim().split(' ').slice(0, 2).join(' ');
       }
-      // Otherwise, retain the existing dataAiHint or let it be undefined if it was already.
-
+      
       const updatedTask: Task = {
         ...editingTask,
         ...finalTaskData,
@@ -387,7 +443,7 @@ export default function HomePage() {
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === taskId
-          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } // Clear dataAiHint as image is now specific
+          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } 
           : task
       )
     );
@@ -412,6 +468,7 @@ export default function HomePage() {
             onToggleSubtask={handleToggleSubtask}
             onToggleTaskComplete={handleToggleTaskComplete}
             onUpdateTaskImage={handleUpdateTaskImage}
+            taskOfTheDayId={taskOfTheDayId}
           />
         </main>
         <footer className="text-center py-6 text-xs text-muted-foreground border-t">

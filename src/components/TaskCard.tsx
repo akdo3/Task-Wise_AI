@@ -2,14 +2,14 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useEffect, useRef } from 'react'; // Added useEffect, useRef
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import type { Task, Priority } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle, Wand2, Loader2 } from 'lucide-react';
+import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle, Wand2, Loader2, Star } from 'lucide-react'; // Added Star
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,7 @@ interface TaskCardProps {
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
   onToggleComplete: (taskId: string) => void;
   onUpdateTaskImage: (taskId: string, newImageUrl: string) => void;
+  isFocusTask?: boolean; // New prop
 }
 
 const priorityBadgeClassConfig: Record<Priority, { baseBg: string; text: string; border: string; animatedClass?: string }> = {
@@ -52,7 +53,7 @@ const priorityCardBgClasses: Record<Priority, string> = {
 };
 
 
-export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSubtask, onToggleComplete, onUpdateTaskImage }) => {
+export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSubtask, onToggleComplete, onUpdateTaskImage, isFocusTask }) => {
   const [isCelebrating, setIsCelebrating] = useState(false);
   const [isGeneratingHintImage, setIsGeneratingHintImage] = useState(false);
   const { toast } = useToast();
@@ -67,33 +68,25 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
   const displayImageUrl = task.imageUrl || 'https://placehold.co/600x400.png';
   const displayImageHint = task.dataAiHint || (task.imageUrl ? 'task visual context' : 'placeholder image');
 
-  // Ref to store the previous count of completed subtasks
   const prevCompletedSubtasksCountRef = useRef(completedSubtasks);
 
   useEffect(() => {
     const allSubtasksNowComplete = totalSubtasks > 0 && completedSubtasks === totalSubtasks;
     const allSubtasksPreviouslyComplete = totalSubtasks > 0 && prevCompletedSubtasksCountRef.current === totalSubtasks;
 
-    // Trigger confetti if:
-    // 1. All subtasks are now complete.
-    // 2. They weren't all complete before this change (i.e., this is the action that completed the last subtask).
-    // 3. The main task itself is not already marked as complete (to avoid double confetti or confetti on already completed tasks).
     if (allSubtasksNowComplete && !allSubtasksPreviouslyComplete && !task.completed) {
       setIsCelebrating(true);
-      setTimeout(() => setIsCelebrating(false), 800); // Duration of confetti animation, matches main task
+      setTimeout(() => setIsCelebrating(false), 800); 
     }
-
-    // Update the ref for the next render/check
     prevCompletedSubtasksCountRef.current = completedSubtasks;
   }, [completedSubtasks, totalSubtasks, task.completed]);
 
 
   const handleToggleCompleteAndCelebrate = () => {
-    // Only trigger main task celebration if it's transitioning to complete and not already celebrating from subtasks
     if (!task.completed && !(totalSubtasks > 0 && completedSubtasks === totalSubtasks)) {
       setIsCelebrating(true);
       setTimeout(() => setIsCelebrating(false), 800);
-    } else if (task.completed) { // If un-completing, ensure celebration stops
+    } else if (task.completed) { 
        setIsCelebrating(false);
     }
     onToggleComplete(task.id);
@@ -136,7 +129,8 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
       "animate-fade-in-up shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out flex flex-col h-full text-card-foreground rounded-[var(--radius)] border hover:border-[hsl(var(--primary))]",
       cardBgClass,
       task.completed && "opacity-60 dark:opacity-50 bg-muted/30 dark:bg-muted/20 hover:opacity-100 grayscale",
-      task.priority === 'high' && !task.completed && "high-priority-glow-effect"
+      task.priority === 'high' && !task.completed && "high-priority-glow-effect",
+      isFocusTask && !task.completed && "ring-2 ring-accent ring-offset-2 ring-offset-background dark:ring-offset-card shadow-2xl"
       )}>
       <div className={cn("relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden", task.completed && "grayscale")}>
           <Image
@@ -145,7 +139,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
             layout="fill"
             objectFit="cover"
             data-ai-hint={displayImageHint}
-            key={displayImageUrl} // Add key to force re-render on src change
+            key={displayImageUrl} 
           />
           {!task.imageUrl && task.dataAiHint && (
             <Tooltip>
@@ -166,21 +160,28 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
           )}
       </div>
       <CardHeader className="pb-3 pt-4">
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start gap-2">
           <CardTitle className={cn("text-lg font-semibold leading-tight", task.completed && "line-through text-muted-foreground")}>{task.title}</CardTitle>
-          <Badge
-            variant="outline"
-            className={cn(
-              "capitalize text-xs px-2 py-0.5 font-medium",
-              badgeConfig.baseBg,
-              badgeConfig.text,
-              badgeConfig.border,
-              task.priority === 'high' && !task.completed && badgeConfig.animatedClass,
-              task.completed && "border-transparent !bg-muted text-muted-foreground opacity-70"
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Badge
+              variant="outline"
+              className={cn(
+                "capitalize text-xs px-2 py-0.5 font-medium",
+                badgeConfig.baseBg,
+                badgeConfig.text,
+                badgeConfig.border,
+                task.priority === 'high' && !task.completed && badgeConfig.animatedClass,
+                task.completed && "border-transparent !bg-muted text-muted-foreground opacity-70"
+              )}
+            >
+              {task.priority}
+            </Badge>
+            {isFocusTask && !task.completed && (
+              <Badge variant="outline" className="border-accent text-accent bg-accent/10 text-xs px-1.5 py-0.5 font-medium animate-fade-in-up">
+                <Star className="h-3 w-3 mr-1 fill-accent" /> Focus
+              </Badge>
             )}
-          >
-            {task.priority}
-          </Badge>
+          </div>
         </div>
         {task.description && (
           <CardDescription className={cn("text-sm text-muted-foreground line-clamp-3 pt-1 whitespace-pre-wrap", task.completed && "line-through opacity-70")}>{task.description}</CardDescription>

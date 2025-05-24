@@ -11,7 +11,8 @@ interface TaskListProps {
   onDeleteTask: (taskId: string) => void;
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
   onToggleTaskComplete: (taskId: string) => void;
-  onUpdateTaskImage: (taskId: string, newImageUrl: string) => void; // New prop
+  onUpdateTaskImage: (taskId: string, newImageUrl: string) => void;
+  taskOfTheDayId: string | null; // New prop
 }
 
 export const TaskList: FC<TaskListProps> = ({ 
@@ -20,7 +21,8 @@ export const TaskList: FC<TaskListProps> = ({
   onDeleteTask, 
   onToggleSubtask,
   onToggleTaskComplete,
-  onUpdateTaskImage, // Destructure new prop
+  onUpdateTaskImage,
+  taskOfTheDayId, // Destructure new prop
 }) => {
   if (tasks.length === 0) {
     return (
@@ -41,7 +43,8 @@ export const TaskList: FC<TaskListProps> = ({
           onDelete={onDeleteTask}
           onToggleSubtask={onToggleSubtask}
           onToggleComplete={onToggleTaskComplete}
-          onUpdateTaskImage={onUpdateTaskImage} // Pass new prop
+          onUpdateTaskImage={onUpdateTaskImage}
+          isFocusTask={task.id === taskOfTheDayId} // Pass isFocusTask prop
         />
       ))}
     </div>
