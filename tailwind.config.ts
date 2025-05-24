@@ -63,9 +63,16 @@ export default {
   		},
   		borderRadius: {
   			lg: 'var(--radius)', // updated to use the CSS variable
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			md: 'calc(var(--radius) - 0.25rem)', // Adjusted for new larger base radius
+  			sm: 'calc(var(--radius) - 0.5rem)' // Adjusted for new larger base radius
   		},
+  		boxShadow: { // More subtle shadows
+        sm: '0 1px 2px 0 hsla(var(--foreground) / 0.03)',
+        DEFAULT: '0 2px 4px 0 hsla(var(--foreground) / 0.04)',
+        md: '0 4px 8px 0 hsla(var(--foreground) / 0.04)',
+        lg: '0 8px 16px 0 hsla(var(--foreground) / 0.04)',
+        xl: '0 12px 24px 0 hsla(var(--foreground) / 0.04)',
+      },
   		keyframes: {
   			'accordion-down': {
   				from: {

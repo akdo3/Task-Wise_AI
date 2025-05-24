@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,29 +19,32 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon, PlusCircle, Trash2, UploadCloud, Sparkles, X } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Sparkles, X } from 'lucide-react';
 import type { Task, Subtask, Priority, AiTaskFormInput } from '@/types';
-import Image from 'next/image';
 import { useToast } from "@/hooks/use-toast";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
 
 const taskFormSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
+  title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
+  description: z.string().max(500, 'Description is too long').optional(),
   priority: z.enum(['low', 'medium', 'high'] as [Priority, ...Priority[]]),
   dueDate: z.date().optional(),
   reminderDate: z.date().optional(),
-  tags: z.array(z.string()).optional(),
-  subtasks: z.array(z.object({ id: z.string(), text: z.string(), completed: z.boolean() })).optional(),
-  delegatedTo: z.string().optional(),
-  imageUrl: z.string().optional(), // For storing data URI
+  tags: z.array(z.string().max(20, 'Tag is too long')).max(5, 'Maximum 5 tags').optional(),
+  subtasks: z.array(z.object({ 
+    id: z.string(), 
+    text: z.string().min(1, 'Subtask text cannot be empty').max(100, 'Subtask is too long'), 
+    completed: z.boolean() 
+  })).max(10, 'Maximum 10 subtasks').optional(),
+  delegatedTo: z.string().max(50, 'Delegatee name is too long').optional(),
+  // imageUrl: z.string().optional(), // Image removed for cleaner UI
 });
 
 export type TaskFormData = z.infer<typeof taskFormSchema>;
 
 interface TaskFormProps {
   task?: Task | null;
-  onSubmit: (data: TaskFormData, aiSuggestions?: AiTaskAssistantOutput) => void;
+  onSubmit: (data: TaskFormData) => void;
   onCancel: () => void;
   onGetAiSuggestions: (data: AiTaskFormInput) => Promise<AiTaskAssistantOutput | { error: string } | undefined>;
   openAiSuggestionsDialog: (suggestions: AiTaskAssistantOutput) => void;
@@ -50,7 +53,6 @@ interface TaskFormProps {
 export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiSuggestions, openAiSuggestionsDialog }) => {
   const { toast } = useToast();
   const [currentTag, setCurrentTag] = useState('');
-  const [imagePreview, setImagePreview] = useState<string | null>(task?.imageUrl || null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   const {
@@ -72,11 +74,11 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
       tags: task?.tags || [],
       subtasks: task?.subtasks || [],
       delegatedTo: task?.delegatedTo || '',
-      imageUrl: task?.imageUrl || undefined,
+      // imageUrl: undefined, // Image removed
     },
   });
 
-  const { fields: subtaskFields, append: appendSubtask, remove: removeSubtask, update: updateSubtask } = useFieldArray({
+  const { fields: subtaskFields, append: appendSubtask, remove: removeSubtask } = useFieldArray({
     control,
     name: 'subtasks',
   });
@@ -94,9 +96,8 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
         tags: task.tags || [],
         subtasks: task.subtasks || [],
         delegatedTo: task.delegatedTo || '',
-        imageUrl: task.imageUrl || undefined,
+        // imageUrl: undefined, // Image removed
       });
-      setImagePreview(task.imageUrl || null);
     } else {
       reset({
         title: '',
@@ -107,50 +108,38 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
         tags: [],
         subtasks: [],
         delegatedTo: '',
-        imageUrl: undefined,
+        // imageUrl: undefined, // Image removed
       });
-      setImagePreview(null);
     }
   }, [task, reset]);
 
   const handleAddTag = () => {
-    if (currentTag && !tags.includes(currentTag)) {
-      setValue('tags', [...tags, currentTag]);
+    if (currentTag.trim() && !tags.includes(currentTag.trim()) && tags.length < 5) {
+      setValue('tags', [...tags, currentTag.trim()]);
       setCurrentTag('');
+    } else if (tags.length >= 5) {
+        toast({ variant: "destructive", title: "Tag Limit Reached", description: "You can add a maximum of 5 tags."});
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
     setValue('tags', tags.filter((tag) => tag !== tagToRemove));
   };
-
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUri = reader.result as string;
-        setImagePreview(dataUri);
-        setValue('imageUrl', dataUri);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
   
   const handleFormSubmit = (data: TaskFormData) => {
-    onSubmit(data);
+    onSubmit({...data, imageUrl: undefined }); // Ensure imageUrl is not submitted
   };
 
   const handleAiAssist = async () => {
     const formData = watch();
     const aiInput: AiTaskFormInput = {
-      description: formData.description || formData.title, // Use title if description is empty
+      description: formData.description || formData.title, 
       subtasks: formData.subtasks?.map(st => st.text) || [],
       priority: formData.priority || 'medium',
       dueDate: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : '',
       reminder: formData.reminderDate ? format(formData.reminderDate, 'yyyy-MM-dd') : '',
       tags: formData.tags || [],
-      image: formData.imageUrl,
+      // image: undefined, // Image removed
     };
 
     setIsAiLoading(true);
@@ -170,21 +159,21 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
 
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 p-1">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-1"> {/* Increased space-y */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8"> {/* Increased gap-y */}
         <div>
-          <Label htmlFor="title">Title</Label>
-          <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} />
-          {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
+          <Label htmlFor="title" className="text-sm font-medium">Title</Label>
+          <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} className="mt-1.5"/>
+          {errors.title && <p className="text-xs text-destructive mt-1.5">{errors.title.message}</p>}
         </div>
         <div>
-          <Label htmlFor="priority">Priority</Label>
+          <Label htmlFor="priority" className="text-sm font-medium">Priority</Label>
           <Controller
             name="priority"
             control={control}
             render={({ field }) => (
               <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger>
+                <SelectTrigger className="mt-1.5">
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -199,13 +188,14 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
       </div>
 
       <div>
-        <Label htmlFor="description">Description</Label>
-        <Textarea id="description" {...register('description')} rows={4} />
+        <Label htmlFor="description" className="text-sm font-medium">Description (Optional)</Label>
+        <Textarea id="description" {...register('description')} rows={5} className="mt-1.5"/>
+        {errors.description && <p className="text-xs text-destructive mt-1.5">{errors.description.message}</p>}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
         <div>
-          <Label htmlFor="dueDate">Due Date</Label>
+          <Label htmlFor="dueDate" className="text-sm font-medium">Due Date (Optional)</Label>
           <Controller
             name="dueDate"
             control={control}
@@ -214,7 +204,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal"
+                    className="w-full justify-start text-left font-normal mt-1.5"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
@@ -233,7 +223,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
           />
         </div>
         <div>
-          <Label htmlFor="reminderDate">Reminder Date</Label>
+          <Label htmlFor="reminderDate" className="text-sm font-medium">Reminder Date (Optional)</Label>
            <Controller
             name="reminderDate"
             control={control}
@@ -242,7 +232,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal"
+                    className="w-full justify-start text-left font-normal mt-1.5"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
@@ -263,48 +253,61 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
       </div>
       
       <div>
-        <Label htmlFor="subtasks">Subtasks</Label>
+        <Label htmlFor="subtasks" className="text-sm font-medium">Subtasks (Optional)</Label>
         {subtaskFields.map((field, index) => (
-          <div key={field.id} className="flex items-center gap-2 mb-2">
-            <Input
-              {...register(`subtasks.${index}.text`)}
-              placeholder={`Subtask ${index + 1}`}
-              className="flex-grow"
-            />
-             <Controller
+          <div key={field.id} className="flex items-center gap-2 mt-2">
+            <Controller
                 name={`subtasks.${index}.completed`}
                 control={control}
                 render={({ field: controllerField }) => (
-                   <input type="checkbox" checked={controllerField.value} onChange={controllerField.onChange} className="h-5 w-5 rounded border-primary text-primary focus:ring-primary" />
+                   <input 
+                      type="checkbox" 
+                      checked={controllerField.value} 
+                      onChange={controllerField.onChange} 
+                      className="h-4 w-4 rounded border-primary text-primary focus:ring-primary shrink-0 mt-0.5" 
+                    />
                 )}
               />
-            <Button type="button" variant="ghost" size="icon" onClick={() => removeSubtask(index)}>
-              <Trash2 className="h-4 w-4 text-destructive" />
+            <Input
+              {...register(`subtasks.${index}.text`)}
+              placeholder={`Subtask ${index + 1}`}
+              className="flex-grow text-sm"
+            />
+            <Button type="button" variant="ghost" size="icon" onClick={() => removeSubtask(index)} className="shrink-0">
+              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
             </Button>
           </div>
         ))}
-        <Button type="button" variant="outline" size="sm" onClick={() => appendSubtask({ id: crypto.randomUUID(), text: '', completed: false })}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Subtask
-        </Button>
+        {errors.subtasks && errors.subtasks.message && <p className="text-xs text-destructive mt-1.5">{errors.subtasks.message}</p>}
+        {errors.subtasks?.root?.message && <p className="text-xs text-destructive mt-1.5">{errors.subtasks.root.message}</p>}
+        {subtaskFields.map((field, index) => errors.subtasks?.[index]?.text && <p key={field.id} className="text-xs text-destructive mt-1.5">{errors.subtasks[index]?.text?.message}</p>)}
+
+        {subtaskFields.length < 10 && (
+            <Button type="button" variant="outline" size="sm" onClick={() => appendSubtask({ id: crypto.randomUUID(), text: '', completed: false })} className="mt-3">
+            <PlusCircle className="mr-2 h-4 w-4" /> Add Subtask
+            </Button>
+        )}
       </div>
 
       <div>
-        <Label htmlFor="tags">Tags</Label>
-        <div className="flex items-center gap-2 mb-2">
+        <Label htmlFor="tags" className="text-sm font-medium">Tags (Optional, max 5)</Label>
+        <div className="flex items-center gap-2 mt-1.5">
           <Input
             id="tag-input"
             value={currentTag}
             onChange={(e) => setCurrentTag(e.target.value)}
-            placeholder="Add a tag"
+            placeholder="Type and press Enter or click Add"
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag();}}}
+            className="text-sm"
           />
-          <Button type="button" variant="outline" onClick={handleAddTag}>Add Tag</Button>
+          <Button type="button" variant="outline" onClick={handleAddTag} className="shrink-0">Add</Button>
         </div>
-        <div className="flex flex-wrap gap-2">
+        {errors.tags && <p className="text-xs text-destructive mt-1.5">{errors.tags.message}</p>}
+        <div className="flex flex-wrap gap-2 mt-2.5">
           {tags.map((tag) => (
-            <span key={tag} className="bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm flex items-center">
+            <span key={tag} className="bg-secondary text-secondary-foreground px-3 py-1.5 rounded-full text-xs flex items-center font-medium">
               {tag}
-              <Button type="button" variant="ghost" size="icon" className="ml-1 h-5 w-5" onClick={() => handleRemoveTag(tag)}>
+              <Button type="button" variant="ghost" size="icon" className="ml-1.5 h-4 w-4" onClick={() => handleRemoveTag(tag)}>
                 <X className="h-3 w-3" />
               </Button>
             </span>
@@ -313,26 +316,19 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
       </div>
 
       <div>
-          <Label htmlFor="delegatedTo">Delegate To</Label>
-          <Input id="delegatedTo" {...register('delegatedTo')} placeholder="Team member name or email" />
+          <Label htmlFor="delegatedTo" className="text-sm font-medium">Delegate To (Optional)</Label>
+          <Input id="delegatedTo" {...register('delegatedTo')} placeholder="Team member name or email" className="mt-1.5"/>
+          {errors.delegatedTo && <p className="text-xs text-destructive mt-1.5">{errors.delegatedTo.message}</p>}
       </div>
 
-      <div>
-        <Label htmlFor="imageUpload">Task Image</Label>
-        <Input id="imageUpload" type="file" accept="image/*" onChange={handleImageUpload} className="mb-2" />
-        {imagePreview && (
-          <div className="mt-2 relative w-full h-48 border rounded-md overflow-hidden">
-            <Image src={imagePreview} alt="Image Preview" layout="fill" objectFit="cover" data-ai-hint="task relevant"/>
-          </div>
-        )}
-      </div>
+      {/* Image upload removed for cleaner UI */}
       
-      <div className="flex justify-end gap-4 mt-8">
-        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-        <Button type="button" onClick={handleAiAssist} variant="outline" disabled={isAiLoading}>
-            <Sparkles className="mr-2 h-4 w-4" /> {isAiLoading ? 'Getting Suggestions...' : 'AI Assist'}
+      <div className="flex justify-end gap-3 pt-4"> {/* Adjusted gap and pt */}
+        <Button type="button" variant="ghost" onClick={onCancel} className="px-6">Cancel</Button>
+        <Button type="button" onClick={handleAiAssist} variant="outline" disabled={isAiLoading} className="px-6">
+            <Sparkles className="mr-2 h-4 w-4" /> {isAiLoading ? 'Thinking...' : 'AI Assist'}
         </Button>
-        <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+        <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6">
           {task ? 'Save Changes' : 'Create Task'}
         </Button>
       </div>

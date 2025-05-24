@@ -10,9 +10,9 @@ export interface Subtask {
 export interface Task {
   id: string;
   title: string;
-  description: string;
+  description: string; // Made non-optional for consistency, can be empty string
   subtasks: Subtask[];
-  imageUrl?: string; // data URI for uploaded image
+  // imageUrl?: string; // Image removed for cleaner UI
   priority: Priority;
   dueDate?: string; // YYYY-MM-DD
   reminderDate?: string; // YYYY-MM-DD
@@ -34,5 +34,5 @@ export interface AiTaskFormInput {
   dueDate: string; // Needs to be string for AI
   reminder: string; // Needs to be string for AI
   tags: string[];
-  image?: string; // data URI
+  image?: undefined; // Image removed for cleaner UI
 }
