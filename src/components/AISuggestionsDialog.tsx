@@ -85,7 +85,7 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
     }
   };
 
-  const handleApplyAll = () => {
+  const handleApplyAllAndClose = () => {
     const applicableSuggestions: Partial<AiTaskAssistantOutput & { imageReviewFeedback?: string }> = {};
     if (suggestions.improvedDescription) {
         applicableSuggestions.improvedDescription = suggestions.improvedDescription;
@@ -111,7 +111,9 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
     // imageReviewFeedback is for display, not direct application to a form field in this manner.
     // approachSuggestions are also for viewing.
 
-    onApplySuggestions(applicableSuggestions);
+    if (Object.keys(applicableSuggestions).length > 0) {
+      onApplySuggestions(applicableSuggestions);
+    }
     onClose();
   };
 
@@ -233,8 +235,8 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
           )}
         </ScrollArea>
         <DialogFooter className="gap-2 sm:justify-between pt-4">
-          <Button variant="ghost" onClick={onClose}>Close &amp; Discard Staged</Button>
-          <Button onClick={handleApplyAll} className="bg-primary hover:bg-primary/90 text-primary-foreground">Apply All Staged &amp; Close</Button>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button onClick={handleApplyAllAndClose} className="bg-primary hover:bg-primary/90 text-primary-foreground">Apply All Staged &amp; Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

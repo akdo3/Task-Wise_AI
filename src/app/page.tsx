@@ -488,11 +488,28 @@ export default function HomePage() {
       setStagedEmojiForForm(appliedSuggestions.suggestedEmoji);
     }
 
-     toast({
-      title: "AI Suggestion Queued",
-      description: "The suggestion has been noted. Save the task to apply it, or use staged elements like the image query for generation.",
-    });
-     setIsAiSuggestionsOpen(false); 
+    let stagedItemDescription = "AI suggestion(s) have been noted";
+    const keysStaged = Object.keys(appliedSuggestions);
+
+    if (keysStaged.length === 1) {
+        if (keysStaged.includes('improvedDescription')) stagedItemDescription = "Description staged";
+        else if (keysStaged.includes('generatedSubtasks')) stagedItemDescription = "Selected subtasks staged";
+        else if (keysStaged.includes('suggestedEmoji')) stagedItemDescription = "Emoji staged";
+        else if (keysStaged.includes('suggestedTagline')) stagedItemDescription = "Tagline staged";
+        else if (keysStaged.includes('suggestedImageQuery')) stagedItemDescription = "Image query staged";
+        else if (keysStaged.includes('suggestedTaskVibe')) stagedItemDescription = "Task vibe staged";
+    } else if (keysStaged.length > 1) {
+        stagedItemDescription = "Multiple AI suggestions staged";
+    }
+
+    // Only show toast if something was actually staged to the form, not just for image review feedback
+    if (keysStaged.some(key => key !== 'imageReviewFeedback')) {
+      toast({
+        title: "AI Suggestion Staged",
+        description: `${stagedItemDescription}. Save the task to apply it, or use staged elements like the image query directly.`,
+      });
+    }
+    // Do not close the dialog here; the dialog component itself will handle its closure.
   };
 
   const handleClearStagedEmoji = () => {
