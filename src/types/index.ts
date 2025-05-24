@@ -24,6 +24,7 @@ export interface Task {
   aiApproachSuggestions?: string[];
   aiImprovedDescription?: string;
   aiGeneratedSubtasks?: string[];
+  taskVibe?: string; // New: AI suggested vibe for the task
   completed: boolean;
   completedAt?: string;
 }
@@ -38,3 +39,4 @@ export interface AiTaskFormInput {
   tags: string[];
   imageUrl?: string;
 }
+

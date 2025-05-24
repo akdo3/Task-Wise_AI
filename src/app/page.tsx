@@ -9,10 +9,11 @@ import { TaskForm, type TaskFormData } from '@/components/TaskForm';
 import { TaskFilterControls, type FilterState } from '@/components/TaskFilterControls';
 import { AISuggestionsDialog } from '@/components/AISuggestionsDialog';
 import { TaskStatsDashboard } from '@/components/TaskStatsDashboard';
+import { DailyMotivation } from '@/components/DailyMotivation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { getAiTaskAssistance } from "@/lib/actions";
+import { getAiTaskAssistance, getDailyMotivationalTip } from "@/lib/actions";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
 import { format } from 'date-fns';
 
@@ -40,6 +41,7 @@ const sampleTasks: Task[] = [
     delegatedTo: 'Self',
     imageUrl: 'https://placehold.co/600x400.png',
     dataAiHint: 'groceries food',
+    taskVibe: "Weekly Essential",
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
     updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(), // 1 day ago
     completed: false,
@@ -60,6 +62,7 @@ const sampleTasks: Task[] = [
     delegatedTo: 'John Doe',
     imageUrl: 'https://placehold.co/600x400.png',
     dataAiHint: 'business proposal',
+    taskVibe: "Strategic Focus",
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
     updatedAt: new Date().toISOString(),
     completed: false,
@@ -77,7 +80,8 @@ const sampleTasks: Task[] = [
     tags: ['health', 'personal'],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    dataAiHint: 'medical health', 
+    dataAiHint: 'medical health',
+    taskVibe: "Health Check",
     completed: true,
     completedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
   },
@@ -98,6 +102,8 @@ export default function HomePage() {
   const [imageQueryForForm, setImageQueryForForm] = useState<string | null>(null);
   const [stagedEmojiForForm, setStagedEmojiForForm] = useState<string | null>(null);
   const [taskOfTheDayId, setTaskOfTheDayId] = useState<string | null>(null);
+  const [dailyMotivation, setDailyMotivation] = useState<{ quote: string; date: string } | null>(null);
+  const [isLoadingMotivation, setIsLoadingMotivation] = useState(false);
 
 
   useEffect(() => {
@@ -117,7 +123,41 @@ export default function HomePage() {
     } else {
       setTasks(sampleTasks.map(t => ({ ...t, completed: t.completed || false })));
     }
-  }, []);
+
+    // Fetch daily motivation
+    const today = new Date().toDateString();
+    const storedMotivationString = localStorage.getItem('dailyMotivation');
+    if (storedMotivationString) {
+      try {
+        const storedMotivation: { quote: string; date: string } = JSON.parse(storedMotivationString);
+        if (storedMotivation.date === today) {
+          setDailyMotivation(storedMotivation);
+        } else {
+          fetchNewMotivation(today);
+        }
+      } catch (e) {
+        console.error("Error parsing motivation from localStorage", e);
+        fetchNewMotivation(today);
+      }
+    } else {
+      fetchNewMotivation(today);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array means this runs once on mount
+
+  const fetchNewMotivation = async (currentDate: string) => {
+    setIsLoadingMotivation(true);
+    const result = await getDailyMotivationalTip();
+    if (result && !('error' in result) && result.tipOrQuote) {
+      const newMotivation = { quote: result.tipOrQuote, date: currentDate };
+      setDailyMotivation(newMotivation);
+      localStorage.setItem('dailyMotivation', JSON.stringify(newMotivation));
+    } else {
+      // Handle error or no tip case, maybe set a default or clear previous
+      console.error("Failed to fetch daily motivation:", result && 'error' in result ? result.error : "Unknown error");
+    }
+    setIsLoadingMotivation(false);
+  };
 
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
@@ -254,7 +294,7 @@ export default function HomePage() {
       imageUrl: data.imageUrl || undefined,
     };
     
-    let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'| 'dataAiHint'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt' | 'dataAiHint'>> = { ...taskDataFromForm };
+    let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'| 'dataAiHint'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt' | 'dataAiHint' | 'taskVibe'>> = { ...taskDataFromForm };
         
     if (stagedAiSuggestionsForSave) {
         if (stagedAiSuggestionsForSave.improvedDescription) {
@@ -276,6 +316,9 @@ export default function HomePage() {
             if (!finalTaskData.description.includes(stagedAiSuggestionsForSave.suggestedTagline)) {
                 finalTaskData.description = `${finalTaskData.description}\n\n"${stagedAiSuggestionsForSave.suggestedTagline}"`;
             }
+        }
+        if (stagedAiSuggestionsForSave.suggestedTaskVibe) {
+            finalTaskData.taskVibe = stagedAiSuggestionsForSave.suggestedTaskVibe;
         }
     }
 
@@ -460,6 +503,7 @@ export default function HomePage() {
         <Header onAddTask={() => handleOpenTaskForm()} />
         <main className="flex-grow container mx-auto px-4 py-12">
           <TaskStatsDashboard tasks={tasks} />
+          <DailyMotivation motivation={dailyMotivation} isLoading={isLoadingMotivation} />
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
           <TaskList
             tasks={filteredTasks}

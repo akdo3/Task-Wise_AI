@@ -4,6 +4,7 @@
 import { aiTaskAssistant, type AiTaskAssistantInput, type AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
 import { generateTaskImage, type GenerateTaskImageInput, type GenerateTaskImageOutput } from "@/ai/flows/generate-task-image-flow";
 import { suggestRandomTaskTitle as suggestRandomTaskTitleFlow, type SuggestRandomTaskOutput } from "@/ai/flows/suggest-random-task-flow";
+import { getDailyMotivationalTipFlow, type DailyMotivationalTipOutput } from "@/ai/flows/daily-motivation-flow";
 
 export async function getAiTaskAssistance(input: AiTaskAssistantInput): Promise<AiTaskAssistantOutput | { error: string }> {
   try {
@@ -41,3 +42,12 @@ export async function suggestRandomTaskTitle(): Promise<SuggestRandomTaskOutput 
   }
 }
 
+export async function getDailyMotivationalTip(): Promise<DailyMotivationalTipOutput | { error: string }> {
+  try {
+    const result = await getDailyMotivationalTipFlow();
+    return result;
+  } catch (error) {
+    console.error("Error calling daily motivational tip flow:", error);
+    return { error: error instanceof Error ? error.message : "An unknown error occurred when fetching daily motivation" };
+  }
+}

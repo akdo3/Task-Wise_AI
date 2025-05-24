@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
-import { Wand2 } from 'lucide-react';
+import { Wand2, Smile, ThumbsUp } from 'lucide-react'; // Added Smile, ThumbsUp
 
 interface AISuggestionsDialogProps {
   isOpen: boolean;
@@ -76,6 +76,12 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
     }
   };
 
+  const handleApplyTaskVibe = () => {
+    if (suggestions.suggestedTaskVibe) {
+      onApplySuggestions({ suggestedTaskVibe: suggestions.suggestedTaskVibe });
+    }
+  };
+
   const handleApplyAll = () => {
     const applicableSuggestions: Partial<AiTaskAssistantOutput> = {};
     if (suggestions.improvedDescription) {
@@ -91,6 +97,9 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
     }
     if (suggestions.suggestedImageQuery) {
         applicableSuggestions.suggestedImageQuery = suggestions.suggestedImageQuery;
+    }
+    if (suggestions.suggestedTaskVibe) {
+        applicableSuggestions.suggestedTaskVibe = suggestions.suggestedTaskVibe;
     }
     // approachSuggestions are for viewing, not direct application to form fields
 
@@ -113,7 +122,9 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
               <h3 className="text-lg font-semibold mb-2">Suggested Emoji:</h3>
               <div className="flex items-center gap-3 bg-muted p-3 rounded-md">
                 <span className="text-3xl">{suggestions.suggestedEmoji}</span>
-                <Button onClick={handleApplyEmoji} size="sm" variant="outline">Stage this Emoji</Button>
+                <Button onClick={handleApplyEmoji} size="sm" variant="outline">
+                  <Smile className="mr-2 h-4 w-4" /> Stage this Emoji
+                </Button>
               </div>
             </div>
           )}
@@ -134,7 +145,19 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
               <p className="text-sm bg-muted p-3 rounded-md italic">
                 "{suggestions.suggestedTagline}"
               </p>
-              <Button onClick={handleApplyTagline} size="sm" variant="outline" className="mt-2">Stage this Tagline</Button>
+              <Button onClick={handleApplyTagline} size="sm" variant="outline" className="mt-2">
+                 <ThumbsUp className="mr-2 h-4 w-4" /> Stage this Tagline
+              </Button>
+            </div>
+          )}
+
+          {suggestions.suggestedTaskVibe && (
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Suggested Task Vibe:</h3>
+              <div className="flex items-center gap-3 bg-muted p-3 rounded-md">
+                <p className="text-sm italic">"{suggestions.suggestedTaskVibe}"</p>
+                <Button onClick={handleApplyTaskVibe} size="sm" variant="outline">Stage this Vibe</Button>
+              </div>
             </div>
           )}
 
