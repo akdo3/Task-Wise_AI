@@ -2,16 +2,19 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState } from 'react'; // Added useState for celebration
+import { useState } from 'react';
 import Image from 'next/image';
 import type { Task, Priority } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle } from 'lucide-react';
+import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle, Wand2, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { generateImageForTask } from '@/lib/actions';
+import { useToast } from "@/hooks/use-toast";
+
 
 interface TaskCardProps {
   task: Task;
@@ -19,6 +22,7 @@ interface TaskCardProps {
   onDelete: (taskId: string) => void;
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
   onToggleComplete: (taskId: string) => void;
+  onUpdateTaskImage: (taskId: string, newImageUrl: string) => void;
 }
 
 const priorityBadgeClassConfig: Record<Priority, { bg: string; text: string; border: string }> = {
@@ -46,8 +50,11 @@ const priorityCardBgClasses: Record<Priority, string> = {
 };
 
 
-export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSubtask, onToggleComplete }) => {
+export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSubtask, onToggleComplete, onUpdateTaskImage }) => {
   const [isCelebrating, setIsCelebrating] = useState(false);
+  const [isGeneratingHintImage, setIsGeneratingHintImage] = useState(false);
+  const { toast } = useToast();
+
   const completedSubtasks = task.subtasks.filter(st => st.completed).length;
   const totalSubtasks = task.subtasks.length;
   const badgeClasses = priorityBadgeClassConfig[task.priority];
@@ -57,12 +64,44 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
   const displayImageHint = task.dataAiHint || (task.imageUrl ? 'task visual context' : 'placeholder image');
 
   const handleToggleCompleteAndCelebrate = () => {
-    if (!task.completed) { // Only celebrate when marking as complete
+    if (!task.completed) { 
       setIsCelebrating(true);
-      setTimeout(() => setIsCelebrating(false), 800); // Duration of confetti animation
+      setTimeout(() => setIsCelebrating(false), 800); 
     }
     onToggleComplete(task.id);
   };
+
+  const handleGenerateImageFromHint = async () => {
+    if (!task.dataAiHint || isGeneratingHintImage) return;
+
+    setIsGeneratingHintImage(true);
+    try {
+      const result = await generateImageForTask({
+        taskTitle: task.title,
+        imageQuery: task.dataAiHint,
+      });
+
+      if (result && !('error' in result) && result.imageDataUri) {
+        onUpdateTaskImage(task.id, result.imageDataUri);
+      } else {
+        const errorMessage = (result && 'error' in result) ? result.error : "Failed to generate image from hint.";
+        toast({
+          variant: "destructive",
+          title: "Image Generation Error",
+          description: errorMessage,
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Image Generation Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+      });
+    } finally {
+      setIsGeneratingHintImage(false);
+    }
+  };
+
 
   return (
     <Card className={cn(
@@ -71,18 +110,34 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
       task.completed && "opacity-60 dark:opacity-50 bg-muted/30 dark:bg-muted/20 hover:opacity-100",
       task.priority === 'high' && !task.completed && "high-priority-glow-effect"
       )}>
-      {task.imageUrl && (
-         <div className={cn("relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden", task.completed && "grayscale")}>
-            <Image
-              src={displayImageUrl}
-              alt={`Image for ${task.title}`}
-              layout="fill"
-              objectFit="cover"
-              data-ai-hint={displayImageHint}
-            />
-        </div>
-      )}
-      <CardHeader className={cn("pb-3 pt-4", !task.imageUrl && "pt-6")}>
+      <div className={cn("relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden", task.completed && "grayscale")}>
+          <Image
+            src={displayImageUrl}
+            alt={`Image for ${task.title}`}
+            layout="fill"
+            objectFit="cover"
+            data-ai-hint={displayImageHint}
+            key={displayImageUrl} // Add key to force re-render on src change
+          />
+          {!task.imageUrl && task.dataAiHint && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 bg-background/70 hover:bg-accent hover:text-accent-foreground text-foreground rounded-full shadow-md h-8 w-8"
+                  onClick={handleGenerateImageFromHint}
+                  disabled={isGeneratingHintImage}
+                >
+                  {isGeneratingHintImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                  <span className="sr-only">Generate Image from AI Hint</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Generate Image from AI Hint: "{task.dataAiHint}"</TooltipContent>
+            </Tooltip>
+          )}
+      </div>
+      <CardHeader className="pb-3 pt-4">
         <div className="flex justify-between items-start">
           <CardTitle className={cn("text-lg font-semibold leading-tight", task.completed && "line-through text-muted-foreground")}>{task.title}</CardTitle>
           <Badge
@@ -99,7 +154,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
           </Badge>
         </div>
         {task.description && (
-          <CardDescription className={cn("text-sm text-muted-foreground line-clamp-3 pt-1", task.completed && "line-through")}>{task.description}</CardDescription>
+          <CardDescription className={cn("text-sm text-muted-foreground line-clamp-3 pt-1 whitespace-pre-wrap", task.completed && "line-through")}>{task.description}</CardDescription>
         )}
       </CardHeader>
       <CardContent className="flex-grow space-y-2.5 text-sm">
@@ -156,7 +211,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
               size="icon"
               onClick={handleToggleCompleteAndCelebrate}
               className={cn(
-                "relative text-muted-foreground", // Added relative for confetti positioning
+                "relative text-muted-foreground", 
                 task.completed ? "hover:text-yellow-500 dark:hover:text-yellow-400" : "hover:text-green-500 dark:hover:text-green-400"
               )}
             >
@@ -170,11 +225,10 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
                       className="confetti-particle"
                       style={{
                         background: `hsl(${Math.random() * 360}, 100%, 70%)`,
-                        // Randomize initial position slightly around the center
-                        transform: `translate(${Math.random() * 50 - 25}px, ${Math.random() * 50 - 25}px) rotate(${Math.random() * 360}deg) scale(0)`, // Start scaled down
-                        animationDelay: `${Math.random() * 0.05}s`, // Stagger start
-                        width: `${Math.random() * 5 + 3}px`, // Random size
-                        height: `${Math.random() * 5 + 3}px`, // Random size
+                        transform: `translate(${Math.random() * 50 - 25}px, ${Math.random() * 50 - 25}px) rotate(${Math.random() * 360}deg) scale(0)`, 
+                        animationDelay: `${Math.random() * 0.05}s`, 
+                        width: `${Math.random() * 5 + 3}px`, 
+                        height: `${Math.random() * 5 + 3}px`, 
                       }}
                     />
                   ))}
@@ -206,5 +260,3 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
     </Card>
   );
 };
-
-    

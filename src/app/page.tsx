@@ -165,15 +165,10 @@ export default function HomePage() {
   const handleOpenTaskForm = (task: Task | null = null) => {
     setEditingTask(task);
     setIsTaskFormOpen(true);
-    // If opening for a new task, ensure staged emoji/query from a previous edit are cleared,
-    // unless they are meant to persist for a new task immediately after AI suggestions.
-    // Current logic clears them on form close, which is generally fine.
     if (task) {
-        // If editing, and the task title already starts with an emoji that matches a potential staged emoji,
-        // pre-fill stagedEmojiForForm so it's visible.
         const titleParts = task.title.split(" ");
         const firstPart = titleParts[0];
-        if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { // Simple emoji check
+        if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { 
             setStagedEmojiForForm(firstPart);
         }
     }
@@ -185,7 +180,7 @@ export default function HomePage() {
     setRawAiOutputForDialog(null);
     setStagedAiSuggestionsForSave(null);
     setImageQueryForForm(null);
-    setStagedEmojiForForm(null); // Clear staged emoji on close
+    setStagedEmojiForForm(null);
   };
 
   const handleTaskSubmit = (data: TaskFormData) => {
@@ -215,7 +210,6 @@ export default function HomePage() {
             finalTaskData.subtasks = [...(finalTaskData.subtasks || []), ...newAiSubtasks];
         }
         if (stagedAiSuggestionsForSave.suggestedEmoji && finalTaskData.title) {
-             // Remove any existing emoji before prepending the new one
             const titleWithoutExistingEmoji = finalTaskData.title.replace(/^\p{Emoji_Presentation}\s*/u, '').trimStart();
             finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${titleWithoutExistingEmoji}`;
         }
@@ -228,16 +222,14 @@ export default function HomePage() {
 
 
     if (editingTask) {
-      const updatedTask = {
+      const updatedTask: Task = {
         ...editingTask,
         ...finalTaskData,
         updatedAt: now,
+        // Retain original dataAiHint if imageUrl hasn't changed or is still a placeholder
+        dataAiHint: (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) ? undefined : editingTask.dataAiHint,
       };
-      if (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) {
-          updatedTask.dataAiHint = undefined;
-      }
-
-
+      
       setTasks(
         tasks.map((t) => (t.id === editingTask.id ? updatedTask : t))
       );
@@ -259,6 +251,7 @@ export default function HomePage() {
       
       const newTask: Task = {
         ...baseNewTask,
+        description: baseNewTask.description || "", // Ensure description is not undefined
         dataAiHint: taskSpecificDataAiHint,
       };
 
@@ -380,6 +373,20 @@ export default function HomePage() {
     });
   };
 
+  const handleUpdateTaskImage = (taskId: string, newImageUrl: string) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
+          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } // Clear dataAiHint as image is now specific
+          : task
+      )
+    );
+    toast({
+      title: "Task Image Updated",
+      description: "AI has generated a new image for your task.",
+    });
+  };
+
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -394,6 +401,7 @@ export default function HomePage() {
             onDeleteTask={handleDeleteTask}
             onToggleSubtask={handleToggleSubtask}
             onToggleTaskComplete={handleToggleTaskComplete}
+            onUpdateTaskImage={handleUpdateTaskImage}
           />
         </main>
         <footer className="text-center py-6 text-xs text-muted-foreground border-t">
