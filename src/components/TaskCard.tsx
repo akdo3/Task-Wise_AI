@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle, Wand2, Loader2, Star, Sparkles } from 'lucide-react'; // Added Star, Sparkles
+import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle, Wand2, Loader2, Star, Sparkles } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -178,13 +178,13 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
             </Badge>
             {task.taskVibe && !task.completed && (
               <Badge variant="secondary" className="text-xs px-1.5 py-0.5 font-normal mt-0.5 self-end bg-transparent border-primary/30 text-primary/80 items-center">
-                <Sparkles className="h-3 w-3 mr-1 text-accent/70" />
+                <Sparkles className="h-3 w-3 mr-1 text-accent/70 animate-sparkle-effect" />
                  {task.taskVibe}
               </Badge>
             )}
             {isFocusTask && !task.completed && (
               <Badge variant="outline" className="border-accent text-accent bg-accent/10 text-xs px-1.5 py-0.5 font-medium animate-fade-in-up mt-0.5">
-                <Star className="h-3 w-3 mr-1 fill-accent" /> Focus
+                <Star className="h-3 w-3 mr-1 fill-accent animate-star-pulse" /> Focus
               </Badge>
             )}
           </div>
