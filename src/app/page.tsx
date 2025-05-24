@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Task, Subtask, AiTaskFormInput } from '@/types';
-import { Header } from '@/components/layout/Header';
+import { AppLayout } from '@/components/layout/AppLayout'; // Changed import
 import { TaskList } from '@/components/TaskList';
 import { TaskForm, type TaskFormData } from '@/components/TaskForm';
 import { TaskFilterControls, type FilterState } from '@/components/TaskFilterControls';
@@ -77,8 +77,7 @@ const sampleTasks: Task[] = [
     tags: ['health', 'personal'],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    // imageUrl intentionally omitted to test placeholder logic with dataAiHint
-    dataAiHint: 'medical health',
+    dataAiHint: 'medical health', // No imageUrl, uses dataAiHint
     completed: true,
     completedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
   },
@@ -180,7 +179,7 @@ export default function HomePage() {
 
   const handleTaskSubmit = (data: TaskFormData) => {
     const now = new Date().toISOString();
-    const taskDataFromForm = { // Renamed to avoid confusion
+    const taskDataFromForm = { 
       ...data,
       description: data.description || "",
       dueDate: data.dueDate ? format(data.dueDate, 'yyyy-MM-dd') : undefined,
@@ -228,8 +227,6 @@ export default function HomePage() {
         ...finalTaskData,
         updatedAt: now,
       };
-      // If a new, non-placeholder image was added/changed, clear old dataAiHint so TaskCard uses a generic one or it remains undefined.
-      // This prevents a specific hint from persisting if the image context has significantly changed.
       if (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) {
           updatedTask.dataAiHint = undefined;
       }
@@ -239,7 +236,7 @@ export default function HomePage() {
         tasks.map((t) => (t.id === editingTask.id ? updatedTask : t))
       );
       toast({ title: "Task Updated", description: `"${finalTaskData.title}" has been updated.` });
-    } else { // New task
+    } else { 
       const baseNewTask = {
         ...finalTaskData,
         id: crypto.randomUUID(),
@@ -253,12 +250,10 @@ export default function HomePage() {
       if (!baseNewTask.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
         taskSpecificDataAiHint = stagedAiSuggestionsForSave.suggestedImageQuery.trim().split(' ').slice(0, 2).join(' ');
       }
-      // If baseNewTask.imageUrl is already set (user-provided or AI-generated image),
-      // taskSpecificDataAiHint remains undefined. TaskCard will use its generic hint.
-
+      
       const newTask: Task = {
         ...baseNewTask,
-        dataAiHint: taskSpecificDataAiHint, // Will be undefined if an image is present or no AI query
+        dataAiHint: taskSpecificDataAiHint,
       };
 
       setTasks([newTask, ...tasks]);
@@ -268,10 +263,16 @@ export default function HomePage() {
   };
 
   const handleDeleteTask = (taskId: string) => {
-    const taskToDelete = tasks.find(t => t.id === taskId);
-    setTasks(tasks.filter((t) => t.id !== taskId));
-    if (taskToDelete) {
-      toast({ title: "Task Deleted", description: `"${taskToDelete.title}" has been deleted.`, variant: "destructive" });
+    let taskTitleForToast: string | undefined;
+    setTasks(tasks.filter((t) => {
+      if (t.id === taskId) {
+        taskTitleForToast = t.title;
+        return false;
+      }
+      return true;
+    }));
+    if (taskTitleForToast) {
+      toast({ title: "Task Deleted", description: `"${taskTitleForToast}" has been deleted.`, variant: "destructive" });
     }
   };
 
@@ -364,8 +365,7 @@ export default function HomePage() {
 
   return (
     <TooltipProvider delayDuration={100}>
-      <div className="min-h-screen flex flex-col">
-        <Header onAddTask={() => handleOpenTaskForm()} />
+      <AppLayout onAddTask={() => handleOpenTaskForm()}>
         <main className="flex-grow container mx-auto px-4 py-12">
           <TaskStatsDashboard tasks={tasks} />
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
@@ -378,40 +378,40 @@ export default function HomePage() {
           />
         </main>
 
-        <Dialog open={isTaskFormOpen} onOpenChange={(isOpen) => { if(!isOpen) handleCloseTaskForm(); else setIsTaskFormOpen(true);}}>
-          <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col rounded-[var(--radius)]">
-              <DialogHeader className="pb-4">
-                <DialogTitle className="text-2xl">{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
-                <DialogDescription>
-                  {editingTask ? 'Update the details of your task.' : 'Fill in the details for your new task.'}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="overflow-y-auto flex-grow pr-3 mr-[-6px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-                  <TaskForm
-                      task={editingTask}
-                      onSubmit={handleTaskSubmit}
-                      onCancel={handleCloseTaskForm}
-                      onGetAiSuggestions={handleGetAiSuggestions}
-                      activeImageQuery={imageQueryForForm}
-                      onClearActiveImageQuery={() => setImageQueryForForm(null)}
-                  />
-              </div>
-          </DialogContent>
-        </Dialog>
-
-        {rawAiOutputForDialog && (
-          <AISuggestionsDialog
-              isOpen={isAiSuggestionsOpen}
-              onClose={() => setIsAiSuggestionsOpen(false)}
-              suggestions={rawAiOutputForDialog}
-              onApplySuggestions={handleApplyAiSuggestions}
-          />
-        )}
-
-        <footer className="text-center py-6 text-xs text-muted-foreground border-t mt-8">
+        <footer className="text-center py-6 text-xs text-muted-foreground border-t mt-auto">
           &copy; {new Date().getFullYear()} TaskWise AI. Crafted with focus.
         </footer>
-      </div>
+      </AppLayout>
+
+      <Dialog open={isTaskFormOpen} onOpenChange={(isOpen) => { if(!isOpen) handleCloseTaskForm(); else setIsTaskFormOpen(true);}}>
+        <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col rounded-[var(--radius)]">
+            <DialogHeader className="pb-4">
+              <DialogTitle className="text-2xl">{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
+              <DialogDescription>
+                {editingTask ? 'Update the details of your task.' : 'Fill in the details for your new task.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="overflow-y-auto flex-grow pr-3 mr-[-6px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                <TaskForm
+                    task={editingTask}
+                    onSubmit={handleTaskSubmit}
+                    onCancel={handleCloseTaskForm}
+                    onGetAiSuggestions={handleGetAiSuggestions}
+                    activeImageQuery={imageQueryForForm}
+                    onClearActiveImageQuery={() => setImageQueryForForm(null)}
+                />
+            </div>
+        </DialogContent>
+      </Dialog>
+
+      {rawAiOutputForDialog && (
+        <AISuggestionsDialog
+            isOpen={isAiSuggestionsOpen}
+            onClose={() => setIsAiSuggestionsOpen(false)}
+            suggestions={rawAiOutputForDialog}
+            onApplySuggestions={handleApplyAiSuggestions}
+        />
+      )}
     </TooltipProvider>
   );
 }
