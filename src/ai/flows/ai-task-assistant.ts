@@ -23,6 +23,7 @@ const AiTaskAssistantOutputSchema = z.object({
   generatedSubtasks: z.array(z.string()).describe('A list of generated subtasks for the task. These should be distinct from provided subtasks and help break down the main task further.'),
   suggestedEmoji: z.string().optional().describe("A single, relevant emoji character that could be prepended to the task title. For example: '🎉' or '🛒'. If no suitable emoji, this can be omitted."),
   suggestedTagline: z.string().optional().describe("A short, creative, and motivational tagline or motto for the task (max 10 words). For example: 'Let's get this done!' or 'Conquer the challenge!'. If no suitable tagline, this can be omitted."),
+  suggestedImageQuery: z.string().max(40).optional().describe("A concise and descriptive prompt (max 7 words) suitable for an image generation model to create a relevant image for this task. E.g., 'professional team collaborating on project' or 'serene mountain landscape at dawn'. This is only generated if no imageUrl is provided in the input."),
 });
 
 export type AiTaskAssistantOutput = z.infer<typeof AiTaskAssistantOutputSchema>;
@@ -37,7 +38,7 @@ const prompt = ai.definePrompt({
   output: {schema: AiTaskAssistantOutputSchema},
   prompt: `You are an AI assistant designed to help users plan and execute their tasks efficiently with a focus on clarity, conciseness, and a bit of creative flair.
 
-  Based on the task details provided, suggest actionable ways to approach the task, generate an improved task description, suggest additional relevant subtasks, a relevant emoji for the title, and a short creative tagline.
+  Based on the task details provided, suggest actionable ways to approach the task, generate an improved task description, suggest additional relevant subtasks, a relevant emoji for the title, a short creative tagline, and (if no image URL is provided by the user) a concise image generation query.
 
   Task Details:
   Description: {{{description}}}
@@ -46,7 +47,7 @@ const prompt = ai.definePrompt({
   Reminder: {{#if reminder}}{{{reminder}}}{{else}}Not set{{/if}}
   Current Subtasks: {{#if subtasks.length}}{{join subtasks ", "}}{{else}}None provided{{/if}}
   Tags: {{#if tags.length}}{{join tags ", "}}{{else}}None provided{{/if}}
-  {{#if imageUrl}}Associated Image URL: {{{imageUrl}}}{{/if}}
+  {{#if imageUrl}}Associated Image URL: {{{imageUrl}}}{{else}}No image URL provided by user.{{/if}}
 
   Your Goal:
   1.  **Improved Description**: Refine the provided description. Make it clearer, more actionable, and comprehensive if needed. If it's already good, you can state that or make minor enhancements.
@@ -54,6 +55,7 @@ const prompt = ai.definePrompt({
   3.  **Generated Subtasks**: Suggest 2-4 new, relevant subtasks that would help complete the main task. Do not repeat existing subtasks. If no further subtasks are logical, provide an empty array.
   4.  **Suggested Emoji**: Suggest a single, relevant emoji (just the character, e.g., '🎉') suitable for prepending to the task title. If unsure, omit this field.
   5.  **Suggested Tagline**: Suggest a short (max 10 words), creative, and motivational tagline for the task. If unsure, omit this field.
+  6.  **Suggested Image Query**: {{#if imageUrl}}You can omit this field as an image URL is already provided by the user.{{else}}Suggest a concise and descriptive prompt (max 7 words, e.g., 'professional team meeting' or 'serene forest path') that would be suitable for an image generation model to create a relevant visual for this task. If unsure, omit this field.{{/if}}
 
   Format your output STRICTLY as a JSON object matching the defined output schema.
   Ensure generated subtasks are distinct and add value.
@@ -72,4 +74,3 @@ const aiTaskAssistantFlow = ai.defineFlow(
     return output!;
   }
 );
-

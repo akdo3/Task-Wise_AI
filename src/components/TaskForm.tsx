@@ -24,7 +24,7 @@ import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon, Wand
 import type { Task, Subtask, Priority, AiTaskFormInput } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
-import { generateImageForTask as generateImageAction } from '@/lib/actions'; // Renamed for clarity
+import { generateImageForTask as generateImageAction } from '@/lib/actions'; 
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title is too long'),
@@ -49,11 +49,11 @@ interface TaskFormProps {
   onSubmit: (data: TaskFormData) => void;
   onCancel: () => void;
   onGetAiSuggestions: (data: AiTaskFormInput) => Promise<AiTaskAssistantOutput | { error: string } | undefined>;
-  // openAiSuggestionsDialog is no longer needed as a direct prop from page.tsx to TaskForm
-  // It's handled internally within page.tsx's onGetAiSuggestions callback
+  activeImageQuery?: string | null;
+  onClearActiveImageQuery: () => void;
 }
 
-export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiSuggestions }) => {
+export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiSuggestions, activeImageQuery, onClearActiveImageQuery }) => {
   const { toast } = useToast();
   const [currentTag, setCurrentTag] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -136,9 +136,8 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
   };
 
   const handleAiAssist = async () => {
-    const formData = watch(); // get current form values
+    const formData = watch(); 
     const aiInput: AiTaskFormInput = {
-      // Ensure description is at least the title if description field is empty
       description: formData.description || formData.title || "New Task", 
       subtasks: formData.subtasks?.map(st => st.text) || [],
       priority: formData.priority || 'medium',
@@ -153,37 +152,40 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
         return;
     }
 
-
     setIsAiLoading(true);
-    // onGetAiSuggestions will now handle opening the dialog internally if successful
     await onGetAiSuggestions(aiInput); 
     setIsAiLoading(false);
-    // No need to call openAiSuggestionsDialog here anymore
   };
 
   const handleGenerateImage = async () => {
     const currentTitle = getValues('title');
     const currentDescription = getValues('description');
 
-    if (!currentTitle) {
+    if (!currentTitle && !activeImageQuery) {
       toast({
         variant: "destructive",
-        title: "Title Required",
-        description: "Please enter a task title to generate an image.",
+        title: "Title or AI Query Required",
+        description: "Please enter a task title or have an AI-suggested query to generate an image.",
       });
       return;
     }
 
     setIsImageGenerating(true);
-    const result = await generateImageAction({ taskTitle: currentTitle, taskDescription: currentDescription });
+    const result = await generateImageAction({ 
+        taskTitle: currentTitle, 
+        taskDescription: currentDescription,
+        imageQuery: activeImageQuery || undefined 
+    });
     setIsImageGenerating(false);
 
     if (result && !('error' in result) && result.imageDataUri) {
       setValue('imageUrl', result.imageDataUri, { shouldValidate: true });
       toast({
         title: "Image Generated",
-        description: "AI has generated an image for your task.",
+        description: `AI has generated an image ${activeImageQuery ? "using the suggested query." : "for your task."}`,
       });
+      // Optionally clear the activeImageQuery after successful generation
+      // onClearActiveImageQuery(); 
     } else {
       const errorMessage = (result && 'error' in result) ? result.error : "Failed to generate image."
       toast({
@@ -379,6 +381,16 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
             </Button>
         </div>
         {errors.imageUrl && <p className="text-xs text-destructive mt-1.5">{errors.imageUrl.message}</p>}
+        {activeImageQuery && (
+          <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2 p-2 bg-muted rounded-md">
+            <Sparkles className="h-3 w-3 text-accent"/>
+            <span>Using AI query for generation: "<em>{activeImageQuery}</em>"</span>
+            <Button type="button" variant="ghost" size="icon" onClick={onClearActiveImageQuery} className="h-5 w-5 ml-auto">
+              <X className="h-3 w-3"/>
+              <span className="sr-only">Clear AI image query</span>
+            </Button>
+          </div>
+        )}
       </div>
       
       <div className="flex justify-end gap-3 pt-4">

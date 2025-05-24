@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
+import { Wand2 } from 'lucide-react';
 
 interface AISuggestionsDialogProps {
   isOpen: boolean;
@@ -51,12 +52,10 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
 
   const handleApplyDescription = () => {
     onApplySuggestions({ improvedDescription: suggestions.improvedDescription });
-    // Keep dialog open for other selections or close if desired: onClose();
   };
 
   const handleApplySelectedSubtasks = () => {
     onApplySuggestions({ generatedSubtasks: selectedGeneratedSubtasks });
-    // Keep dialog open or close: onClose();
   };
   
   const handleApplyEmoji = () => {
@@ -71,12 +70,17 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
     }
   };
 
+  const handleApplyImageQuery = () => {
+    if (suggestions.suggestedImageQuery) {
+      onApplySuggestions({ suggestedImageQuery: suggestions.suggestedImageQuery });
+    }
+  };
+
   const handleApplyAll = () => {
     const applicableSuggestions: Partial<AiTaskAssistantOutput> = {};
     if (suggestions.improvedDescription) {
         applicableSuggestions.improvedDescription = suggestions.improvedDescription;
     }
-    // Apply only the currently selected subtasks from the dialog's state
     applicableSuggestions.generatedSubtasks = selectedGeneratedSubtasks;
     
     if (suggestions.suggestedEmoji) {
@@ -84,6 +88,9 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
     }
     if (suggestions.suggestedTagline) {
         applicableSuggestions.suggestedTagline = suggestions.suggestedTagline;
+    }
+    if (suggestions.suggestedImageQuery) {
+        applicableSuggestions.suggestedImageQuery = suggestions.suggestedImageQuery;
     }
     // approachSuggestions are for viewing, not direct application to form fields
 
@@ -97,7 +104,7 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
         <DialogHeader>
           <DialogTitle>AI Task Suggestions</DialogTitle>
           <DialogDescription>
-            Review and select the AI suggestions to enhance your task. Click "Apply All Selected" or choose individual suggestions.
+            Review and select the AI suggestions to enhance your task. Click "Apply All Staged" or choose individual suggestions.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] p-4 border rounded-md space-y-6">
@@ -130,6 +137,19 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogProps> = ({
               <Button onClick={handleApplyTagline} size="sm" variant="outline" className="mt-2">Stage this Tagline</Button>
             </div>
           )}
+
+          {suggestions.suggestedImageQuery && (
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Suggested Image Generation Query:</h3>
+              <p className="text-sm bg-muted p-3 rounded-md font-mono">
+                {suggestions.suggestedImageQuery}
+              </p>
+              <Button onClick={handleApplyImageQuery} size="sm" variant="outline" className="mt-2">
+                <Wand2 className="mr-2 h-4 w-4" /> Stage this Query
+              </Button>
+            </div>
+          )}
+
 
           {suggestions.generatedSubtasks && suggestions.generatedSubtasks.length > 0 && (
             <div>

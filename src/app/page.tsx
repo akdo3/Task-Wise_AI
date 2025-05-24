@@ -96,7 +96,7 @@ export default function HomePage() {
   const [isAiSuggestionsOpen, setIsAiSuggestionsOpen] = useState(false);
   const [rawAiOutputForDialog, setRawAiOutputForDialog] = useState<AiTaskAssistantOutput | null>(null);
   const [stagedAiSuggestionsForSave, setStagedAiSuggestionsForSave] = useState<Partial<AiTaskAssistantOutput> | null>(null);
-  // const [taskFormForAi, setTaskFormForAi] = useState<TaskFormData | null>(null); // This state seems unused, consider removal
+  const [imageQueryForForm, setImageQueryForForm] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -165,14 +165,22 @@ export default function HomePage() {
   const handleOpenTaskForm = (task: Task | null = null) => {
     setEditingTask(task);
     setIsTaskFormOpen(true);
+    // If opening an existing task that might have had an AI query staged previously but not used,
+    // we should clear any lingering query for the form unless it's re-fetched.
+    // However, if AI suggestions were just applied, we want to keep the query.
+    // This logic is tricky. For now, let's clear it unless it's part of 'editingTask' data.
+    // This means imageQueryForForm is primarily for NEW suggestions for the CURRENT form session.
+    if (!task && imageQueryForForm) { // If opening for a new task, clear any old query
+        // setImageQueryForForm(null); // Let's see if clearing in handleCloseTaskForm is enough
+    }
   };
 
   const handleCloseTaskForm = () => {
     setIsTaskFormOpen(false);
     setEditingTask(null);
-    // setTaskFormForAi(null); // This state seems unused
     setRawAiOutputForDialog(null); 
     setStagedAiSuggestionsForSave(null);
+    setImageQueryForForm(null); // Clear active image query when form closes
   };
 
   const handleTaskSubmit = (data: TaskFormData) => {
@@ -202,39 +210,41 @@ export default function HomePage() {
             finalTaskData.subtasks = [...(finalTaskData.subtasks || []), ...newAiSubtasks];
         }
         if (stagedAiSuggestionsForSave.suggestedEmoji && finalTaskData.title) {
-            // Prevent adding emoji multiple times if title already starts with it
             const currentEmojiPart = finalTaskData.title.split(" ")[0];
             const isEmojiAlreadyPresent = /\p{Emoji}/u.test(currentEmojiPart);
 
             if (!isEmojiAlreadyPresent || !finalTaskData.title.startsWith(stagedAiSuggestionsForSave.suggestedEmoji)) {
                  finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${finalTaskData.title}`;
             } else if (isEmojiAlreadyPresent && currentEmojiPart !== stagedAiSuggestionsForSave.suggestedEmoji) {
-                 // Replace existing emoji if different
                  finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${finalTaskData.title.substring(currentEmojiPart.length).trimStart()}`;
             }
         }
         if (stagedAiSuggestionsForSave.suggestedTagline && finalTaskData.description !== undefined) {
-             // Avoid appending multiple taglines by checking if one similar to AI's is already there.
-             // This is a simple check; more sophisticated checks might be needed for production.
             if (!finalTaskData.description.includes(stagedAiSuggestionsForSave.suggestedTagline)) {
                 finalTaskData.description = `${finalTaskData.description}\n\n"${stagedAiSuggestionsForSave.suggestedTagline}"`;
             }
         }
+        // suggestedImageQuery is handled by TaskForm directly for generation, not saved to task data directly
     }
 
 
     if (editingTask) {
       setTasks(
         tasks.map((t) =>
-          t.id === editingTask.id ? { ...t, ...finalTaskData, updatedAt: now, completed: t.completed, completedAt: t.completedAt } : t
+          t.id === editingTask.id ? { ...t, ...finalTaskData, updatedAt: now, completed: t.completed, completedAt: t.completedAt, dataAiHint: t.dataAiHint } : t // preserve existing dataAiHint
         )
       );
       toast({ title: "Task Updated", description: `"${finalTaskData.title}" has been updated.` });
     } else {
+      // For new tasks, dataAiHint can be set if an image wasn't provided but a hint was (e.g. from AI)
+      // This part is tricky as dataAiHint isn't directly on TaskFormData.
+      // For now, we'll rely on image generation or manual placeholder hints.
+      // If we were to use AI suggestedImageQuery to populate dataAiHint, it would be:
+      // const newDataAiHint = stagedAiSuggestionsForSave?.suggestedImageQuery ? stagedAiSuggestionsForSave.suggestedImageQuery.split(" ").slice(0,2).join(" ") : undefined;
       setTasks([{ ...finalTaskData, id: crypto.randomUUID(), createdAt: now, updatedAt: now, completed: false } as Task, ...tasks]);
       toast({ title: "Task Created", description: `"${finalTaskData.title}" has been added.` });
     }
-    handleCloseTaskForm();
+    handleCloseTaskForm(); // Also clears imageQueryForForm
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -298,8 +308,8 @@ export default function HomePage() {
         imageUrl: aiInput.imageUrl || undefined,
     });
     if (result && !('error' in result)) {
-        setRawAiOutputForDialog(result); // Store the full raw AI output
-        openAiSuggestionsDialog(result); // Open dialog with full output
+        setRawAiOutputForDialog(result); 
+        openAiSuggestionsDialog(result); 
     } else if (result && 'error' in result) {
         toast({
             variant: "destructive",
@@ -307,12 +317,10 @@ export default function HomePage() {
             description: result.error,
         });
     }
-    return result; // Return for TaskForm loading state
+    return result; 
   };
   
   const openAiSuggestionsDialog = (suggestions: AiTaskAssistantOutput) => {
-    // The raw suggestions are already set in setRawAiOutputForDialog
-    // No need to setStagedAiSuggestionsForSave here, that happens on apply
     setIsAiSuggestionsOpen(true);
   };
   
@@ -322,11 +330,15 @@ export default function HomePage() {
         return updatedStaged;
     });
 
+    if (appliedSuggestions.suggestedImageQuery) {
+      setImageQueryForForm(appliedSuggestions.suggestedImageQuery);
+    }
+
      toast({
       title: "AI Suggestion Queued",
-      description: "The suggestion has been noted. Save the task to apply it.",
+      description: "The suggestion has been noted. Save the task to apply it, or use staged elements like the image query for generation.",
     });
-     setIsAiSuggestionsOpen(false); // Close dialog after applying/queuing
+     setIsAiSuggestionsOpen(false); 
   };
 
 
@@ -360,17 +372,18 @@ export default function HomePage() {
                       onSubmit={handleTaskSubmit}
                       onCancel={handleCloseTaskForm}
                       onGetAiSuggestions={handleGetAiSuggestions}
-                      // openAiSuggestionsDialog is called internally by handleGetAiSuggestions now
+                      activeImageQuery={imageQueryForForm}
+                      onClearActiveImageQuery={() => setImageQueryForForm(null)}
                   />
               </div>
           </DialogContent>
         </Dialog>
 
-        {rawAiOutputForDialog && ( // Dialog uses rawAiOutputForDialog
+        {rawAiOutputForDialog && ( 
           <AISuggestionsDialog
               isOpen={isAiSuggestionsOpen}
               onClose={() => setIsAiSuggestionsOpen(false)}
-              suggestions={rawAiOutputForDialog} // Pass the raw output
+              suggestions={rawAiOutputForDialog} 
               onApplySuggestions={handleApplyAiSuggestions}
           />
         )}

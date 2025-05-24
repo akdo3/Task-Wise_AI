@@ -22,6 +22,7 @@ export async function getAiTaskAssistance(input: AiTaskAssistantInput): Promise<
 
 export async function generateImageForTask(input: GenerateTaskImageInput): Promise<GenerateTaskImageOutput | { error: string }> {
   try {
+    // The input type GenerateTaskImageInput already includes an optional imageQuery
     const result = await generateTaskImage(input);
     return result;
   } catch (error) {
