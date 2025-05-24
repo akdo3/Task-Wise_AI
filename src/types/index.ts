@@ -1,5 +1,6 @@
 
 export type Priority = "low" | "medium" | "high";
+export type CurrentView = "grid" | "compactList"; // Added for view switching
 
 export interface Subtask {
   id: string;
@@ -10,10 +11,10 @@ export interface Subtask {
 export interface Task {
   id: string;
   title: string;
-  description: string; // Made non-optional for consistency, can be empty string
+  description: string; 
   subtasks: Subtask[];
-  imageUrl?: string; // Optional
-  dataAiHint?: string; // Optional hint for images
+  imageUrl?: string; 
+  dataAiHint?: string; 
   priority: Priority;
   dueDate?: string; // YYYY-MM-DD
   reminderDate?: string; // YYYY-MM-DD
@@ -24,7 +25,7 @@ export interface Task {
   aiApproachSuggestions?: string[];
   aiImprovedDescription?: string;
   aiGeneratedSubtasks?: string[];
-  taskVibe?: string; // New: AI suggested vibe for the task
+  taskVibe?: string; 
   completed: boolean;
   completedAt?: string;
 }
@@ -39,4 +40,3 @@ export interface AiTaskFormInput {
   tags: string[];
   imageUrl?: string;
 }
-

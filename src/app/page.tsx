@@ -2,23 +2,25 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Task, Subtask, AiTaskFormInput } from '@/types';
+import type { Task, Subtask, AiTaskFormInput, CurrentView } from '@/types';
 import { Header } from '@/components/layout/Header';
 import { TaskList } from '@/components/TaskList';
 import { TaskForm, type TaskFormData } from '@/components/TaskForm';
 import { TaskFilterControls, type FilterState } from '@/components/TaskFilterControls';
 import { AISuggestionsDialog, type AISuggestionsDialogCommonProps } from '@/components/AISuggestionsDialog';
-import { TaskStatsDashboard } from '@/components/TaskStatsDashboard';
+// TaskStatsDashboard removed from direct import, accessed via dialog
 import { DailyMotivation } from '@/components/DailyMotivation';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { getAiTaskAssistance, getDailyMotivationalTip, reviewTaskImage as reviewTaskImageAction, generateImageForTask as generateImageAction, suggestRandomTask as suggestRandomTaskAction } from "@/lib/actions";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
 import type { ReviewTaskImageOutput, ReviewTaskImageInput } from "@/ai/flows/review-task-image-flow";
-import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
+import { TaskStatsDashboard } from '@/components/TaskStatsDashboard';
+
 
 const initialFilters: FilterState = {
   priority: 'all',
@@ -109,6 +111,7 @@ export default function HomePage() {
   const [isLoadingMotivation, setIsLoadingMotivation] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<CurrentView>('grid');
 
 
   useEffect(() => {
@@ -162,21 +165,23 @@ export default function HomePage() {
     setIsLoadingMotivation(false);
   };
 
-  useEffect(() => {
+ useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
     applyFilters();
     
-    const incompleteTasks = tasks.filter((t) => !t.completed);
     let currentFocusTaskId: string | null = taskOfTheDayId; 
+    const incompleteTasks = tasks.filter((t) => !t.completed);
 
-    if(taskOfTheDayId){
-        const focusTaskStillExistsAndValid = incompleteTasks.find(t => t.id === taskOfTheDayId);
+    // If there's a task of the day, check if it's still valid (exists and incomplete)
+    if(currentFocusTaskId){
+        const focusTaskStillExistsAndValid = incompleteTasks.find(t => t.id === currentFocusTaskId);
         if(!focusTaskStillExistsAndValid){ 
             currentFocusTaskId = null; 
             localStorage.removeItem('taskOfTheDay');
         }
     }
 
+    // If no current focus task (either initially, or because previous was invalidated)
     if (!currentFocusTaskId) { 
         const today = new Date().toDateString();
         const storedTaskOfTheDayString = localStorage.getItem('taskOfTheDay');
@@ -184,6 +189,7 @@ export default function HomePage() {
         if (storedTaskOfTheDayString) {
             try {
                 const storedTaskOfTheDay: { id: string; date: string } = JSON.parse(storedTaskOfTheDayString);
+                // Check if stored task is for today and still exists and is incomplete
                 const taskStillExistsAndValid = incompleteTasks.find(t => t.id === storedTaskOfTheDay.id);
                 if (storedTaskOfTheDay.date === today && taskStillExistsAndValid) {
                     currentFocusTaskId = storedTaskOfTheDay.id;
@@ -196,6 +202,7 @@ export default function HomePage() {
             }
         }
         
+        // If still no focus task, and there are incomplete tasks, select a new one
         if (!currentFocusTaskId && incompleteTasks.length > 0) {
             let candidates = incompleteTasks.filter(t => t.priority === 'high');
             if (candidates.length === 0) candidates = incompleteTasks.filter(t => t.priority === 'medium');
@@ -209,7 +216,8 @@ export default function HomePage() {
         }
     }
     
-    if (incompleteTasks.length === 0) { 
+    // If all tasks are complete, clear the focus task
+    if (incompleteTasks.length === 0 && currentFocusTaskId) { 
         currentFocusTaskId = null;
         localStorage.removeItem('taskOfTheDay');
     }
@@ -267,7 +275,7 @@ export default function HomePage() {
     if (task) {
         const titleParts = task.title.split(" ");
         const firstPart = titleParts[0];
-        if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) {
+        if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { // Basic emoji check
             setStagedEmojiForForm(firstPart);
         }
     }
@@ -443,7 +451,7 @@ export default function HomePage() {
  const handleGetAiTaskSuggestions = async (aiInput: AiTaskFormInput) => {
     const result = await getAiTaskAssistance({
         ...aiInput,
-        dueDate: aiInput.dueDate || "",
+        dueDate: aiInput.dueDate || "", 
         reminder: aiInput.reminder || "",
         imageUrl: aiInput.imageUrl || undefined,
     });
@@ -470,9 +478,11 @@ export default function HomePage() {
 
     if (result && !('error' in result)) {
       const dialogPayload: AISuggestionsDialogCommonProps['suggestions'] = {
-        approachSuggestions: [],
-        improvedDescription: '',
-        generatedSubtasks: [],
+        // Ensure all AiTaskAssistantOutput fields are present or appropriately defaulted if not part of ReviewTaskImageOutput
+        approachSuggestions: [], // Default or existing
+        improvedDescription: '', // Default or existing
+        generatedSubtasks: [],   // Default or existing
+        // suggestedEmoji, suggestedTagline, suggestedTaskVibe, suggestedReminderDate might be null or based on current task if editing
         imageReviewFeedback: result.feedback,
         suggestedImageQuery: result.suggestedImageQuery,
       };
@@ -490,6 +500,7 @@ export default function HomePage() {
   const handleApplyAiSuggestions = (appliedSuggestions: Partial<AiTaskAssistantOutput & { imageReviewFeedback?: string }>) => {
     setStagedAiSuggestionsForSave(prevStaged => {
         const updatedStaged = { ...prevStaged, ...appliedSuggestions };
+        // Ensure generatedSubtasks is explicitly set if it's in appliedSuggestions, even if empty
         if (appliedSuggestions.hasOwnProperty('generatedSubtasks') && Array.isArray(appliedSuggestions.generatedSubtasks) && appliedSuggestions.generatedSubtasks.length === 0) {
             updatedStaged.generatedSubtasks = [];
         }
@@ -517,11 +528,14 @@ export default function HomePage() {
         else if (key === 'suggestedImageQuery') stagedItemDescription = "Image query staged";
         else if (key === 'suggestedTaskVibe') stagedItemDescription = "Task vibe staged";
         else if (key === 'suggestedReminderDate') stagedItemDescription = "Reminder date staged";
+        // Add other specific messages as needed
     } else if (relevantKeys.length > 1) {
         stagedItemDescription = "Multiple AI suggestions staged";
     }
     
+    // Only toast if actual suggestions (not just imageReviewFeedback or empty generatedSubtasks) were staged
     if (relevantKeys.length > 0 || (appliedSuggestions.hasOwnProperty('generatedSubtasks') && Array.isArray(appliedSuggestions.generatedSubtasks) && appliedSuggestions.generatedSubtasks.length === 0) ) {
+      // Optional: uncomment if you want toasts for every staging action
       // toast({
       //   title: "AI Suggestion Staged",
       //   description: `${stagedItemDescription}. Save the task to apply it, or use staged elements like the image query directly.`,
@@ -531,10 +545,11 @@ export default function HomePage() {
 
   const handleClearStagedEmoji = () => {
     setStagedEmojiForForm(null);
+    // Also remove it from the main staged suggestions if it exists there
     setStagedAiSuggestionsForSave(prev => {
         if (!prev) return null;
-        const { suggestedEmoji, ...rest } = prev; 
-        return Object.keys(rest).length > 0 ? rest : null; 
+        const { suggestedEmoji, ...rest } = prev; // Remove suggestedEmoji
+        return Object.keys(rest).length > 0 ? rest : null; // Return null if no other suggestions are staged
     });
   };
 
@@ -542,7 +557,7 @@ export default function HomePage() {
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === taskId
-          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } 
+          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } // Clear dataAiHint when new image is set
           : task
       )
     );
@@ -560,10 +575,11 @@ export default function HomePage() {
             onAddTask={() => handleOpenTaskForm()} 
             onOpenSettings={() => setIsSettingsDialogOpen(true)}
             onOpenStats={() => setIsStatsDialogOpen(true)}
+            currentView={currentView}
+            onSetView={setCurrentView}
         />
         <main className="flex-grow container mx-auto px-4 py-12">
           <DailyMotivation motivation={dailyMotivation} isLoading={isLoadingMotivation} />
-          {/* TaskStatsDashboard removed from inline display */}
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
           <TaskList
             tasks={filteredTasks}
@@ -573,6 +589,7 @@ export default function HomePage() {
             onToggleTaskComplete={handleToggleTaskComplete}
             onUpdateTaskImage={handleUpdateTaskImage}
             taskOfTheDayId={taskOfTheDayId}
+            currentView={currentView}
           />
         </main>
         <footer className="text-center py-6 text-xs text-muted-foreground border-t">
