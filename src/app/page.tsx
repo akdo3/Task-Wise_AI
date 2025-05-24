@@ -94,8 +94,9 @@ export default function HomePage() {
   const { toast } = useToast();
 
   const [isAiSuggestionsOpen, setIsAiSuggestionsOpen] = useState(false);
-  const [currentAiSuggestions, setCurrentAiSuggestions] = useState<AiTaskAssistantOutput | null>(null);
-  const [taskFormForAi, setTaskFormForAi] = useState<TaskFormData | null>(null);
+  const [rawAiOutputForDialog, setRawAiOutputForDialog] = useState<AiTaskAssistantOutput | null>(null);
+  const [stagedAiSuggestionsForSave, setStagedAiSuggestionsForSave] = useState<Partial<AiTaskAssistantOutput> | null>(null);
+  // const [taskFormForAi, setTaskFormForAi] = useState<TaskFormData | null>(null); // This state seems unused, consider removal
 
 
   useEffect(() => {
@@ -169,8 +170,9 @@ export default function HomePage() {
   const handleCloseTaskForm = () => {
     setIsTaskFormOpen(false);
     setEditingTask(null);
-    setTaskFormForAi(null); 
-    setCurrentAiSuggestions(null);
+    // setTaskFormForAi(null); // This state seems unused
+    setRawAiOutputForDialog(null); 
+    setStagedAiSuggestionsForSave(null);
   };
 
   const handleTaskSubmit = (data: TaskFormData) => {
@@ -187,25 +189,36 @@ export default function HomePage() {
     
     let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'| 'dataAiHint'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt' | 'dataAiHint'>> = { ...taskData };
         
-    if (currentAiSuggestions) { 
-        if (currentAiSuggestions.improvedDescription) {
-            finalTaskData.description = currentAiSuggestions.improvedDescription;
+    if (stagedAiSuggestionsForSave) { 
+        if (stagedAiSuggestionsForSave.improvedDescription) {
+            finalTaskData.description = stagedAiSuggestionsForSave.improvedDescription;
         }
-        if (currentAiSuggestions.generatedSubtasks && currentAiSuggestions.generatedSubtasks.length > 0) {
-            const newAiSubtasks: Subtask[] = currentAiSuggestions.generatedSubtasks.map(stText => ({
+        if (stagedAiSuggestionsForSave.generatedSubtasks && stagedAiSuggestionsForSave.generatedSubtasks.length > 0) {
+            const newAiSubtasks: Subtask[] = stagedAiSuggestionsForSave.generatedSubtasks.map(stText => ({
                 id: crypto.randomUUID(),
                 text: stText,
                 completed: false,
             }));
             finalTaskData.subtasks = [...(finalTaskData.subtasks || []), ...newAiSubtasks];
         }
-        if (currentAiSuggestions.suggestedEmoji && finalTaskData.title) {
-            if (!finalTaskData.title.startsWith(currentAiSuggestions.suggestedEmoji)) {
-                 finalTaskData.title = `${currentAiSuggestions.suggestedEmoji} ${finalTaskData.title}`;
+        if (stagedAiSuggestionsForSave.suggestedEmoji && finalTaskData.title) {
+            // Prevent adding emoji multiple times if title already starts with it
+            const currentEmojiPart = finalTaskData.title.split(" ")[0];
+            const isEmojiAlreadyPresent = /\p{Emoji}/u.test(currentEmojiPart);
+
+            if (!isEmojiAlreadyPresent || !finalTaskData.title.startsWith(stagedAiSuggestionsForSave.suggestedEmoji)) {
+                 finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${finalTaskData.title}`;
+            } else if (isEmojiAlreadyPresent && currentEmojiPart !== stagedAiSuggestionsForSave.suggestedEmoji) {
+                 // Replace existing emoji if different
+                 finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${finalTaskData.title.substring(currentEmojiPart.length).trimStart()}`;
             }
         }
-        if (currentAiSuggestions.suggestedTagline && finalTaskData.description !== undefined) {
-            finalTaskData.description = `${finalTaskData.description}\n\n"${currentAiSuggestions.suggestedTagline}"`;
+        if (stagedAiSuggestionsForSave.suggestedTagline && finalTaskData.description !== undefined) {
+             // Avoid appending multiple taglines by checking if one similar to AI's is already there.
+             // This is a simple check; more sophisticated checks might be needed for production.
+            if (!finalTaskData.description.includes(stagedAiSuggestionsForSave.suggestedTagline)) {
+                finalTaskData.description = `${finalTaskData.description}\n\n"${stagedAiSuggestionsForSave.suggestedTagline}"`;
+            }
         }
     }
 
@@ -277,38 +290,43 @@ export default function HomePage() {
     }
   };
   
-  const handleGetAiSuggestions = async (aiInput: AiTaskFormInput) => {
+ const handleGetAiSuggestions = async (aiInput: AiTaskFormInput) => {
     const result = await getAiTaskAssistance({
         ...aiInput,
         dueDate: aiInput.dueDate || "", 
         reminder: aiInput.reminder || "",
         imageUrl: aiInput.imageUrl || undefined,
     });
-    return result;
+    if (result && !('error' in result)) {
+        setRawAiOutputForDialog(result); // Store the full raw AI output
+        openAiSuggestionsDialog(result); // Open dialog with full output
+    } else if (result && 'error' in result) {
+        toast({
+            variant: "destructive",
+            title: "AI Assistance Error",
+            description: result.error,
+        });
+    }
+    return result; // Return for TaskForm loading state
   };
   
-  const handleOpenAiSuggestionsDialog = (suggestions: AiTaskAssistantOutput) => {
-    setCurrentAiSuggestions(suggestions);
+  const openAiSuggestionsDialog = (suggestions: AiTaskAssistantOutput) => {
+    // The raw suggestions are already set in setRawAiOutputForDialog
+    // No need to setStagedAiSuggestionsForSave here, that happens on apply
     setIsAiSuggestionsOpen(true);
   };
   
   const handleApplyAiSuggestions = (appliedSuggestions: Partial<AiTaskAssistantOutput>) => {
-    setCurrentAiSuggestions(prev => {
-        const newSuggestions = {
-            ...(prev || { approachSuggestions: [], improvedDescription: '', generatedSubtasks: [] }), 
-            ...appliedSuggestions 
-        };
-        if (appliedSuggestions.generatedSubtasks && prev?.generatedSubtasks) {
-            newSuggestions.generatedSubtasks = [...prev.generatedSubtasks, ...appliedSuggestions.generatedSubtasks];
-        }
-        return newSuggestions;
+    setStagedAiSuggestionsForSave(prevStaged => {
+        const updatedStaged = { ...prevStaged, ...appliedSuggestions };
+        return updatedStaged;
     });
 
      toast({
       title: "AI Suggestion Queued",
       description: "The suggestion has been noted. Save the task to apply it.",
     });
-     setIsAiSuggestionsOpen(false);
+     setIsAiSuggestionsOpen(false); // Close dialog after applying/queuing
   };
 
 
@@ -342,17 +360,17 @@ export default function HomePage() {
                       onSubmit={handleTaskSubmit}
                       onCancel={handleCloseTaskForm}
                       onGetAiSuggestions={handleGetAiSuggestions}
-                      openAiSuggestionsDialog={handleOpenAiSuggestionsDialog}
+                      // openAiSuggestionsDialog is called internally by handleGetAiSuggestions now
                   />
               </div>
           </DialogContent>
         </Dialog>
 
-        {currentAiSuggestions && (
+        {rawAiOutputForDialog && ( // Dialog uses rawAiOutputForDialog
           <AISuggestionsDialog
               isOpen={isAiSuggestionsOpen}
               onClose={() => setIsAiSuggestionsOpen(false)}
-              suggestions={currentAiSuggestions}
+              suggestions={rawAiOutputForDialog} // Pass the raw output
               onApplySuggestions={handleApplyAiSuggestions}
           />
         )}
@@ -364,4 +382,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-

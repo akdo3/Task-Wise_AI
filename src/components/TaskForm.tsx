@@ -49,10 +49,11 @@ interface TaskFormProps {
   onSubmit: (data: TaskFormData) => void;
   onCancel: () => void;
   onGetAiSuggestions: (data: AiTaskFormInput) => Promise<AiTaskAssistantOutput | { error: string } | undefined>;
-  openAiSuggestionsDialog: (suggestions: AiTaskAssistantOutput) => void;
+  // openAiSuggestionsDialog is no longer needed as a direct prop from page.tsx to TaskForm
+  // It's handled internally within page.tsx's onGetAiSuggestions callback
 }
 
-export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiSuggestions, openAiSuggestionsDialog }) => {
+export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiSuggestions }) => {
   const { toast } = useToast();
   const [currentTag, setCurrentTag] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -135,9 +136,10 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
   };
 
   const handleAiAssist = async () => {
-    const formData = watch();
+    const formData = watch(); // get current form values
     const aiInput: AiTaskFormInput = {
-      description: formData.description || formData.title, 
+      // Ensure description is at least the title if description field is empty
+      description: formData.description || formData.title || "New Task", 
       subtasks: formData.subtasks?.map(st => st.text) || [],
       priority: formData.priority || 'medium',
       dueDate: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : '',
@@ -146,19 +148,17 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
       imageUrl: formData.imageUrl || '',
     };
 
-    setIsAiLoading(true);
-    const suggestions = await onGetAiSuggestions(aiInput);
-    setIsAiLoading(false);
-
-    if (suggestions && !('error' in suggestions)) {
-      openAiSuggestionsDialog(suggestions);
-    } else if (suggestions && 'error' in suggestions) {
-      toast({
-        variant: "destructive",
-        title: "AI Assistance Error",
-        description: suggestions.error,
-      });
+    if (!aiInput.description) {
+        toast({ variant: "destructive", title: "Title or Description Required", description: "Please provide a title or description for AI assistance."});
+        return;
     }
+
+
+    setIsAiLoading(true);
+    // onGetAiSuggestions will now handle opening the dialog internally if successful
+    await onGetAiSuggestions(aiInput); 
+    setIsAiLoading(false);
+    // No need to call openAiSuggestionsDialog here anymore
   };
 
   const handleGenerateImage = async () => {
