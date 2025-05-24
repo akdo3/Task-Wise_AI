@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -19,7 +20,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon, PlusCircle, Trash2, Sparkles, X } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Sparkles, X, Image as ImageIcon } from 'lucide-react'; // Added ImageIcon
 import type { Task, Subtask, Priority, AiTaskFormInput } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
@@ -37,7 +38,7 @@ const taskFormSchema = z.object({
     completed: z.boolean() 
   })).max(10, 'Maximum 10 subtasks').optional(),
   delegatedTo: z.string().max(50, 'Delegatee name is too long').optional(),
-  // imageUrl: z.string().optional(), // Image removed for cleaner UI
+  imageUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')), // Restored imageUrl field
 });
 
 export type TaskFormData = z.infer<typeof taskFormSchema>;
@@ -74,7 +75,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
       tags: task?.tags || [],
       subtasks: task?.subtasks || [],
       delegatedTo: task?.delegatedTo || '',
-      // imageUrl: undefined, // Image removed
+      imageUrl: task?.imageUrl || '', 
     },
   });
 
@@ -96,7 +97,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
         tags: task.tags || [],
         subtasks: task.subtasks || [],
         delegatedTo: task.delegatedTo || '',
-        // imageUrl: undefined, // Image removed
+        imageUrl: task.imageUrl || '',
       });
     } else {
       reset({
@@ -108,7 +109,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
         tags: [],
         subtasks: [],
         delegatedTo: '',
-        // imageUrl: undefined, // Image removed
+        imageUrl: '',
       });
     }
   }, [task, reset]);
@@ -127,7 +128,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
   };
   
   const handleFormSubmit = (data: TaskFormData) => {
-    onSubmit({...data, imageUrl: undefined }); // Ensure imageUrl is not submitted
+    onSubmit(data); 
   };
 
   const handleAiAssist = async () => {
@@ -139,7 +140,7 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
       dueDate: formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : '',
       reminder: formData.reminderDate ? format(formData.reminderDate, 'yyyy-MM-dd') : '',
       tags: formData.tags || [],
-      // image: undefined, // Image removed
+      imageUrl: formData.imageUrl || '',
     };
 
     setIsAiLoading(true);
@@ -159,8 +160,8 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
 
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-1"> {/* Increased space-y */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8"> {/* Increased gap-y */}
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
         <div>
           <Label htmlFor="title" className="text-sm font-medium">Title</Label>
           <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} className="mt-1.5"/>
@@ -320,10 +321,25 @@ export const TaskForm: FC<TaskFormProps> = ({ task, onSubmit, onCancel, onGetAiS
           <Input id="delegatedTo" {...register('delegatedTo')} placeholder="Team member name or email" className="mt-1.5"/>
           {errors.delegatedTo && <p className="text-xs text-destructive mt-1.5">{errors.delegatedTo.message}</p>}
       </div>
-
-      {/* Image upload removed for cleaner UI */}
       
-      <div className="flex justify-end gap-3 pt-4"> {/* Adjusted gap and pt */}
+      <div>
+        <Label htmlFor="imageUrl" className="text-sm font-medium">Image URL (Optional)</Label>
+        <div className="relative mt-1.5">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <Input 
+                id="imageUrl" 
+                {...register('imageUrl')} 
+                placeholder="https://example.com/image.png" 
+                className="pl-10"
+                aria-invalid={errors.imageUrl ? "true" : "false"}
+            />
+        </div>
+        {errors.imageUrl && <p className="text-xs text-destructive mt-1.5">{errors.imageUrl.message}</p>}
+      </div>
+      
+      <div className="flex justify-end gap-3 pt-4">
         <Button type="button" variant="ghost" onClick={onCancel} className="px-6">Cancel</Button>
         <Button type="button" onClick={handleAiAssist} variant="outline" disabled={isAiLoading} className="px-6">
             <Sparkles className="mr-2 h-4 w-4" /> {isAiLoading ? 'Thinking...' : 'AI Assist'}

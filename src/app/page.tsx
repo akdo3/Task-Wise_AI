@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -21,7 +22,6 @@ const initialFilters: FilterState = {
   searchTerm: '',
 };
 
-// Sample Data - Images removed for cleaner UI
 const sampleTasks: Task[] = [
   {
     id: '1',
@@ -37,7 +37,7 @@ const sampleTasks: Task[] = [
     reminderDate: '2024-08-14',
     tags: ['personal', 'home', 'urgent'],
     delegatedTo: 'Self',
-    // imageUrl: 'https://placehold.co/600x400/E3F2FD/333?text=Groceries', // Image removed
+    imageUrl: 'https://placehold.co/600x400.png',
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
     updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(), // 1 day ago
   },
@@ -55,6 +55,7 @@ const sampleTasks: Task[] = [
     dueDate: '2024-08-25',
     tags: ['work', 'project', 'strategic'],
     delegatedTo: 'John Doe',
+    imageUrl: 'https://placehold.co/600x400.png',
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
     updatedAt: new Date().toISOString(),
   },
@@ -69,6 +70,7 @@ const sampleTasks: Task[] = [
     priority: 'low',
     dueDate: '2024-09-10',
     tags: ['health', 'personal'],
+    // No imageUrl for this one to test conditional rendering
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -93,7 +95,6 @@ export default function HomePage() {
     if (storedTasks) {
       try {
         const parsedTasks = JSON.parse(storedTasks);
-        // Basic validation to prevent crashes if stored data is malformed
         if (Array.isArray(parsedTasks) && parsedTasks.every(t => typeof t.id === 'string')) {
           setTasks(parsedTasks);
         } else {
@@ -161,15 +162,16 @@ export default function HomePage() {
     const now = new Date().toISOString();
     const taskData = {
       ...data,
-      description: data.description || "", // Ensure description is always a string
+      description: data.description || "", 
       dueDate: data.dueDate ? format(data.dueDate, 'yyyy-MM-dd') : undefined,
       reminderDate: data.reminderDate ? format(data.reminderDate, 'yyyy-MM-dd') : undefined,
       tags: data.tags || [],
       subtasks: data.subtasks || [],
-      imageUrl: undefined, // Ensure imageUrl is not part of task data
+      imageUrl: data.imageUrl || undefined, 
     };
     
-    let finalTaskData = { ...taskData };
+    let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt'>> = { ...taskData };
+    
     if (taskFormForAi && currentAiSuggestions) { 
         if (currentAiSuggestions.improvedDescription) {
             finalTaskData.description = currentAiSuggestions.improvedDescription;
@@ -193,7 +195,7 @@ export default function HomePage() {
       );
       toast({ title: "Task Updated", description: `"${finalTaskData.title}" has been updated.` });
     } else {
-      setTasks([{ ...finalTaskData, id: crypto.randomUUID(), createdAt: now, updatedAt: now }, ...tasks]);
+      setTasks([{ ...finalTaskData, id: crypto.randomUUID(), createdAt: now, updatedAt: now } as Task, ...tasks]);
       toast({ title: "Task Created", description: `"${finalTaskData.title}" has been added.` });
     }
     handleCloseTaskForm();
@@ -226,11 +228,12 @@ export default function HomePage() {
   };
   
   const handleGetAiSuggestions = async (aiInput: AiTaskFormInput) => {
+    // Ensure imageUrl is passed correctly
     const result = await getAiTaskAssistance({
         ...aiInput,
         dueDate: aiInput.dueDate || "", 
         reminder: aiInput.reminder || "",
-        image: undefined, // Ensure image is not sent to AI
+        imageUrl: aiInput.imageUrl || undefined,
     });
     return result;
   };

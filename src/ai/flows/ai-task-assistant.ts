@@ -1,3 +1,4 @@
+
 // This is an AI task assistant that provides suggestions on how to approach a task and generates content to improve task details.
 'use server';
 
@@ -11,12 +12,7 @@ const AiTaskAssistantInputSchema = z.object({
   dueDate: z.string().describe('The due date of the task.'),
   reminder: z.string().describe('A reminder for the task.'),
   tags: z.array(z.string()).describe('A list of tags associated with the task.'),
-  image: z
-    .undefined() // Image field is no longer used
-    .optional()
-    .describe(
-      "This field is deprecated and no longer used."
-    ),
+  imageUrl: z.string().optional().describe("An optional URL of an image related to the task."),
 });
 
 export type AiTaskAssistantInput = z.infer<typeof AiTaskAssistantInputSchema>;
@@ -30,14 +26,12 @@ const AiTaskAssistantOutputSchema = z.object({
 export type AiTaskAssistantOutput = z.infer<typeof AiTaskAssistantOutputSchema>;
 
 export async function aiTaskAssistant(input: AiTaskAssistantInput): Promise<AiTaskAssistantOutput> {
-  // Ensure image is not passed to the flow, even if present in type
-  const { image, ...restOfInput } = input;
-  return aiTaskAssistantFlow(restOfInput as Omit<AiTaskAssistantInput, 'image'> & { image?: undefined });
+  return aiTaskAssistantFlow(input);
 }
 
 const prompt = ai.definePrompt({
   name: 'aiTaskAssistantPrompt',
-  input: {schema: AiTaskAssistantInputSchema.omit({ image: true })}, // Omit image from schema used by prompt
+  input: {schema: AiTaskAssistantInputSchema}, 
   output: {schema: AiTaskAssistantOutputSchema},
   prompt: `You are an AI assistant designed to help users plan and execute their tasks efficiently with a focus on clarity and conciseness.
 
@@ -50,6 +44,7 @@ const prompt = ai.definePrompt({
   Reminder: {{#if reminder}}{{{reminder}}}{{else}}Not set{{/if}}
   Current Subtasks: {{#if subtasks.length}}{{join subtasks ", "}}{{else}}None provided{{/if}}
   Tags: {{#if tags.length}}{{join tags ", "}}{{else}}None provided{{/if}}
+  {{#if imageUrl}}Associated Image URL: {{{imageUrl}}}{{/if}}
 
   Your Goal:
   1.  **Improved Description**: Refine the provided description. Make it clearer, more actionable, and comprehensive if needed. If it's already good, you can state that or make minor enhancements.
@@ -65,11 +60,10 @@ const prompt = ai.definePrompt({
 const aiTaskAssistantFlow = ai.defineFlow(
   {
     name: 'aiTaskAssistantFlow',
-    inputSchema: AiTaskAssistantInputSchema.omit({ image: true }), // Omit image from flow input schema
+    inputSchema: AiTaskAssistantInputSchema, 
     outputSchema: AiTaskAssistantOutputSchema,
   },
   async (input) => {
-    // The 'image' field is already excluded from the input type of this flow
     const {output} = await prompt(input);
     return output!;
   }

@@ -2,6 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
+import Image from 'next/image'; // Import next/image
 import type { Task, Priority } from '@/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,18 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
 
   return (
     <Card className="animate-fade-in-up shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out flex flex-col h-full bg-card text-card-foreground rounded-[var(--radius)]">
-      <CardHeader className="pb-3">
+      {task.imageUrl && (
+        <div className="relative w-full h-48 rounded-t-[var(--radius)] overflow-hidden">
+          <Image
+            src={task.imageUrl}
+            alt={`Image for ${task.title}`}
+            layout="fill"
+            objectFit="cover"
+            data-ai-hint="task visual context" 
+          />
+        </div>
+      )}
+      <CardHeader className={cn("pb-3", task.imageUrl ? "pt-4" : "pt-6")}>
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-semibold leading-tight">{task.title}</CardTitle>
           <Badge 
