@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CalendarDays, Edit3, Trash2, UserCheck, Repeat, CheckCircle, Circle, Wand2, Loader2, Star, Sparkles } from 'lucide-react';
+import { CalendarDays, Edit3, Trash2, UserCheck, CheckCircle, Circle, Wand2, Loader2, Star, Sparkles, Bell } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -208,7 +208,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
         )}
         {task.reminderDate && (
           <div className={cn("flex items-center text-muted-foreground", task.completed && "line-through opacity-70")}>
-            <Repeat className="h-3.5 w-3.5 mr-2" />
+            <Bell className="h-3.5 w-3.5 mr-2 text-accent/80" />
             Reminder: {format(new Date(task.reminderDate), 'MMM d, yyyy')}
           </div>
         )}

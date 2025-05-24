@@ -37,6 +37,7 @@ const AiTaskAssistantOutputSchema = z.object({
   suggestedTagline: z.string().optional().describe("A short, creative, and motivational tagline or motto for the task (max 10 words). For example: 'Let's get this done!' or 'Conquer the challenge!'. If no suitable tagline, this can be omitted."),
   suggestedImageQuery: z.string().max(40).optional().describe("A concise and descriptive prompt (max 7 words) suitable for an image generation model to create a relevant image for this task. E.g., 'professional team collaborating on project' or 'serene mountain landscape at dawn'. This is only generated if no image is associated with the task (hasImage is false)."),
   suggestedTaskVibe: z.string().max(25).optional().describe("A short, one or two-word vibe or mood for the task based on its content (max 25 chars), e.g., 'Focused Work', 'Creative Burst', 'Quick Win', 'Urgent Call', 'Relaxed Read'. Omit if no clear vibe emerges."),
+  suggestedReminderDate: z.string().optional().describe("An AI-suggested reminder date (YYYY-MM-DD) if the user hasn't set one and it seems appropriate, e.g., a day before the due date. Only suggest if a due date is present and no reminder is set."),
 });
 
 export type AiTaskAssistantOutput = z.infer<typeof AiTaskAssistantOutputSchema>;
@@ -51,7 +52,7 @@ const prompt = ai.definePrompt({
   output: {schema: AiTaskAssistantOutputSchema},
   prompt: `You are an AI assistant designed to help users plan and execute their tasks efficiently with a focus on clarity, conciseness, and a bit of creative flair.
 
-  Based on the task details provided, suggest actionable ways to approach the task, generate an improved task description, suggest additional relevant subtasks, a relevant emoji for the title, a short creative tagline, (if no image is associated with the task) a concise image generation query, and a short task vibe.
+  Based on the task details provided, suggest actionable ways to approach the task, generate an improved task description, suggest additional relevant subtasks, a relevant emoji for the title, a short creative tagline, (if no image is associated with the task) a concise image generation query, a short task vibe, and (if no reminder is set but a due date exists) a suggested reminder date.
 
   Task Details:
   Description: {{{description}}}
@@ -70,9 +71,11 @@ const prompt = ai.definePrompt({
   5.  **Suggested Tagline**: Suggest a short (max 10 words), creative, and motivational tagline for the task. If unsure, omit this field.
   6.  **Suggested Image Query**: {{#if hasImage}}You can omit this field as an image is already associated with the task.{{else}}Suggest a concise and descriptive prompt (max 7 words, e.g., 'professional team meeting' or 'serene forest path') that would be suitable for an image generation model to create a relevant visual for this task. If unsure, omit this field.{{/if}}
   7.  **Suggested Task Vibe**: Analyze the task's content and suggest a short (1-3 words, max 25 characters) 'vibe' or 'mood' for it. Examples: 'Focused Work', 'Creative Burst', 'Quick Win', 'Urgent Call', 'Relaxed Read'. If no strong vibe is apparent, omit this field.
+  8.  **Suggested Reminder Date**: {{#if reminder}}A reminder is already set, so omit this field.{{else}}{{#if dueDate}}Suggest a reminder date (YYYY-MM-DD format), typically 1-2 days before the due date '{{{dueDate}}}'. If the due date is very soon (today or tomorrow), do not suggest a reminder.{{else}}No due date is set, so omit this field.{{/if}}{{/if}}
+
 
   Format your output STRICTLY as a JSON object matching the defined output schema.
-  Ensure generated subtasks are distinct and add value.
+  Ensure generated subtasks are distinct and add value. If no logical subtasks, ensure 'generatedSubtasks' is an empty array.
   Keep all text concise and professional.
   `,
 });
@@ -103,4 +106,3 @@ const aiTaskAssistantFlow = ai.defineFlow(
     return output!;
   }
 );
-

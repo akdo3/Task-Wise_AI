@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -15,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
-import { Wand2, Smile, ThumbsUp, SparklesIcon, MessageSquareQuote } from 'lucide-react';
+import { Wand2, Smile, ThumbsUp, SparklesIcon, MessageSquareQuote, CalendarClock } from 'lucide-react';
 
 // Define a common structure for suggestions that the dialog can handle
 export interface AISuggestionsDialogCommonProps {
@@ -73,7 +74,6 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
   };
 
   const handleApplyImageQuery = () => {
-    // This applies 'suggestedImageQuery' which can come from task assist OR image review
     if (suggestions.suggestedImageQuery) {
       onApplySuggestions({ suggestedImageQuery: suggestions.suggestedImageQuery });
     }
@@ -85,13 +85,18 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
     }
   };
 
+  const handleApplyReminderDate = () => {
+    if (suggestions.suggestedReminderDate) {
+      onApplySuggestions({ suggestedReminderDate: suggestions.suggestedReminderDate });
+    }
+  };
+
   const handleApplyAllAndClose = () => {
     const applicableSuggestions: Partial<AiTaskAssistantOutput & { imageReviewFeedback?: string }> = {};
     if (suggestions.improvedDescription) {
         applicableSuggestions.improvedDescription = suggestions.improvedDescription;
     }
     if (selectedGeneratedSubtasks.length > 0 || (suggestions.generatedSubtasks && suggestions.generatedSubtasks.length === 0) ) {
-        // ensure empty array is passed if no subtasks were ever suggested or all deselected
         applicableSuggestions.generatedSubtasks = selectedGeneratedSubtasks;
     }
     
@@ -101,15 +106,15 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
     if (suggestions.suggestedTagline) {
         applicableSuggestions.suggestedTagline = suggestions.suggestedTagline;
     }
-    // This handles image query from either task assistance or image review
     if (suggestions.suggestedImageQuery) { 
         applicableSuggestions.suggestedImageQuery = suggestions.suggestedImageQuery;
     }
     if (suggestions.suggestedTaskVibe) {
         applicableSuggestions.suggestedTaskVibe = suggestions.suggestedTaskVibe;
     }
-    // imageReviewFeedback is for display, not direct application to a form field in this manner.
-    // approachSuggestions are also for viewing.
+    if (suggestions.suggestedReminderDate) {
+        applicableSuggestions.suggestedReminderDate = suggestions.suggestedReminderDate;
+    }
 
     if (Object.keys(applicableSuggestions).length > 0) {
       onApplySuggestions(applicableSuggestions);
@@ -127,7 +132,6 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] p-4 border rounded-md space-y-6">
-          {/* Section for Image Review Feedback - Render if present */}
           {suggestions.imageReviewFeedback && (
             <div className="p-4 bg-muted/50 rounded-lg">
               <h3 className="text-lg font-semibold mb-2 flex items-center">
@@ -136,7 +140,6 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
               <p className="text-sm bg-background p-3 rounded-md whitespace-pre-wrap shadow-sm">
                 {suggestions.imageReviewFeedback}
               </p>
-              {/* If image review also suggested a new query, it will appear in the 'Suggested Image Query' section below */}
             </div>
           )}
 
@@ -186,7 +189,16 @@ export const AISuggestionsDialog: FC<AISuggestionsDialogCommonProps> = ({
             </div>
           )}
 
-          {/* This section handles suggestedImageQuery from EITHER aiTaskAssistant OR reviewTaskImageFlow */}
+          {suggestions.suggestedReminderDate && (
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-2 flex items-center"><CalendarClock className="mr-2 h-5 w-5 text-accent" />Suggested Reminder Date:</h3>
+              <div className="flex items-center justify-between gap-3 bg-background p-3 rounded-md shadow-sm">
+                <p className="text-sm font-mono">{suggestions.suggestedReminderDate}</p>
+                <Button onClick={handleApplyReminderDate} size="sm" variant="outline">Stage this Reminder</Button>
+              </div>
+            </div>
+          )}
+
           {suggestions.suggestedImageQuery && (
             <div className="p-4 bg-muted/50 rounded-lg">
               <h3 className="text-lg font-semibold mb-2 flex items-center"><Wand2 className="mr-2 h-5 w-5 text-accent" />Suggested Image Query:</h3>

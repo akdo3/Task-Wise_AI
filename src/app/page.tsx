@@ -10,15 +10,15 @@ import { TaskFilterControls, type FilterState } from '@/components/TaskFilterCon
 import { AISuggestionsDialog, type AISuggestionsDialogCommonProps } from '@/components/AISuggestionsDialog';
 import { TaskStatsDashboard } from '@/components/TaskStatsDashboard';
 import { DailyMotivation } from '@/components/DailyMotivation';
-import { SettingsDialog } from '@/components/SettingsDialog'; // Added import
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'; // Ensure DialogFooter is here
+import { SettingsDialog } from '@/components/SettingsDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { getAiTaskAssistance, getDailyMotivationalTip, reviewTaskImage as reviewTaskImageAction, generateImageForTask as generateImageAction, suggestRandomTask as suggestRandomTaskAction } from "@/lib/actions";
 import type { AiTaskAssistantOutput } from "@/ai/flows/ai-task-assistant";
 import type { ReviewTaskImageOutput, ReviewTaskImageInput } from "@/ai/flows/review-task-image-flow";
-import { Button } from '@/components/ui/button'; // Added import for Button used in DialogFooter
-import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { format, parseISO } from 'date-fns';
 
 const initialFilters: FilterState = {
   priority: 'all',
@@ -322,6 +322,13 @@ export default function HomePage() {
         if (stagedAiSuggestionsForSave.suggestedTaskVibe) {
             finalTaskData.taskVibe = stagedAiSuggestionsForSave.suggestedTaskVibe;
         }
+        if (stagedAiSuggestionsForSave.suggestedReminderDate && !finalTaskData.reminderDate) {
+             try {
+                finalTaskData.reminderDate = format(parseISO(stagedAiSuggestionsForSave.suggestedReminderDate), 'yyyy-MM-dd');
+            } catch (e) {
+                console.warn("AI suggested an invalid reminder date format:", stagedAiSuggestionsForSave.suggestedReminderDate);
+            }
+        }
     }
 
 
@@ -509,15 +516,16 @@ export default function HomePage() {
         else if (key === 'suggestedTagline') stagedItemDescription = "Tagline staged";
         else if (key === 'suggestedImageQuery') stagedItemDescription = "Image query staged";
         else if (key === 'suggestedTaskVibe') stagedItemDescription = "Task vibe staged";
+        else if (key === 'suggestedReminderDate') stagedItemDescription = "Reminder date staged";
     } else if (relevantKeys.length > 1) {
         stagedItemDescription = "Multiple AI suggestions staged";
     }
     
     if (relevantKeys.length > 0 || (appliedSuggestions.hasOwnProperty('generatedSubtasks') && Array.isArray(appliedSuggestions.generatedSubtasks) && appliedSuggestions.generatedSubtasks.length === 0) ) {
-      toast({
-        title: "AI Suggestion Staged",
-        description: `${stagedItemDescription}. Save the task to apply it, or use staged elements like the image query directly.`,
-      });
+      // toast({
+      //   title: "AI Suggestion Staged",
+      //   description: `${stagedItemDescription}. Save the task to apply it, or use staged elements like the image query directly.`,
+      // });
     }
   };
 
@@ -555,7 +563,7 @@ export default function HomePage() {
         />
         <main className="flex-grow container mx-auto px-4 py-12">
           <DailyMotivation motivation={dailyMotivation} isLoading={isLoadingMotivation} />
-          <TaskStatsDashboard tasks={tasks} />
+          {/* TaskStatsDashboard removed from inline display */}
           <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
           <TaskList
             tasks={filteredTasks}
