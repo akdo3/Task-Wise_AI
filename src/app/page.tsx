@@ -80,7 +80,7 @@ const sampleTasks: Task[] = [
     tags: ['health', 'personal'],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    dataAiHint: 'medical health',
+    dataAiHint: 'medical health', // No imageUrl, placeholder will use this hint
     taskVibe: "Health Check",
     completed: true,
     completedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
@@ -267,7 +267,9 @@ export default function HomePage() {
     if (task) {
         const titleParts = task.title.split(" ");
         const firstPart = titleParts[0];
+        // Check if the first part is an emoji and its length is appropriate (1 or 2 for complex emojis)
         if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { 
+            // It's likely an emoji, potentially with a ZWJ or skin tone modifier
             setStagedEmojiForForm(firstPart);
         }
     }
@@ -294,8 +296,10 @@ export default function HomePage() {
       imageUrl: data.imageUrl || undefined,
     };
     
+    // Initialize with form data, which includes the title potentially modified by stagedEmoji in the form.
     let finalTaskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'| 'dataAiHint'> & Partial<Pick<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt' | 'dataAiHint' | 'taskVibe'>> = { ...taskDataFromForm };
         
+    // Apply AI suggestions, potentially overriding form data
     if (stagedAiSuggestionsForSave) {
         if (stagedAiSuggestionsForSave.improvedDescription) {
             finalTaskData.description = stagedAiSuggestionsForSave.improvedDescription;
@@ -308,11 +312,19 @@ export default function HomePage() {
             }));
             finalTaskData.subtasks = [...(finalTaskData.subtasks || []), ...newAiSubtasks];
         }
+
+        // Special handling for emoji: ensure it's applied correctly to the title from the form
+        // The form title *should* already reflect the staged emoji if `TaskForm` handles it.
+        // If stagedEmojiForForm exists, the title from `taskDataFromForm` should ideally already have it.
+        // However, if AISuggestionsDialog directly stages an emoji, we need to ensure it's used.
         if (stagedAiSuggestionsForSave.suggestedEmoji && finalTaskData.title) {
             const titleWithoutExistingEmoji = finalTaskData.title.replace(/^\p{Emoji_Presentation}\s*/u, '').trimStart();
             finalTaskData.title = `${stagedAiSuggestionsForSave.suggestedEmoji} ${titleWithoutExistingEmoji}`;
         }
+
+
         if (stagedAiSuggestionsForSave.suggestedTagline && finalTaskData.description !== undefined) {
+            // Avoid duplicating tagline if it's already somehow in the description
             if (!finalTaskData.description.includes(stagedAiSuggestionsForSave.suggestedTagline)) {
                 finalTaskData.description = `${finalTaskData.description}\n\n"${stagedAiSuggestionsForSave.suggestedTagline}"`;
             }
@@ -326,11 +338,17 @@ export default function HomePage() {
     if (editingTask) {
       let updatedDataAiHint: string | undefined = editingTask.dataAiHint;
 
+      // If the image URL has changed AND it's not a placeholder, clear the old hint.
       if (finalTaskData.imageUrl && finalTaskData.imageUrl !== editingTask.imageUrl && !finalTaskData.imageUrl.startsWith('https://placehold.co')) {
-        updatedDataAiHint = undefined;
-      } else if (!finalTaskData.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
+        updatedDataAiHint = undefined; 
+      } 
+      // If there's no image URL now, AND AI suggested an image query, use that for the hint.
+      else if (!finalTaskData.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
         updatedDataAiHint = stagedAiSuggestionsForSave.suggestedImageQuery.trim().split(' ').slice(0, 2).join(' ');
       }
+      // If image URL was removed and was previously a placeholder, keep the old hint if it exists.
+      // If it was a real image and is now removed, without a new AI query, the hint could be cleared or kept based on preference.
+      // Current logic: only set if AI suggests, or if it's a new image.
       
       const updatedTask: Task = {
         ...editingTask,
@@ -343,7 +361,7 @@ export default function HomePage() {
         tasks.map((t) => (t.id === editingTask.id ? updatedTask : t))
       );
       toast({ title: "Task Updated", description: `"${finalTaskData.title}" has been updated.` });
-    } else { 
+    } else { // Creating a new task
       const baseNewTask = {
         ...finalTaskData,
         id: crypto.randomUUID(),
@@ -354,14 +372,15 @@ export default function HomePage() {
 
       let taskSpecificDataAiHint: string | undefined = undefined;
 
+      // If there's no image URL, AND AI suggested an image query, use that for the hint.
       if (!baseNewTask.imageUrl && stagedAiSuggestionsForSave?.suggestedImageQuery) {
         taskSpecificDataAiHint = stagedAiSuggestionsForSave.suggestedImageQuery.trim().split(' ').slice(0, 2).join(' ');
       }
       
       const newTask: Task = {
         ...baseNewTask,
-        description: baseNewTask.description || "", 
-        dataAiHint: taskSpecificDataAiHint,
+        description: baseNewTask.description || "", // Ensure description is always a string
+        dataAiHint: taskSpecificDataAiHint, // Apply the hint determined above
       };
 
       setTasks([newTask, ...tasks]);
@@ -437,7 +456,7 @@ export default function HomePage() {
         imageUrl: aiInput.imageUrl || undefined,
     });
     if (result && !('error' in result)) {
-        setRawAiOutputForDialog(result);
+        setRawAiOutputForDialog(result); // Store the raw output
         openAiSuggestionsDialog(result);
     } else if (result && 'error' in result) {
         toast({
@@ -450,19 +469,24 @@ export default function HomePage() {
   };
   
   const openAiSuggestionsDialog = (suggestions: AiTaskAssistantOutput) => {
+    // rawAiOutputForDialog is already set by handleGetAiSuggestions
     setIsAiSuggestionsOpen(true);
   };
   
   const handleApplyAiSuggestions = (appliedSuggestions: Partial<AiTaskAssistantOutput>) => {
+    // This function now merges with existing staged suggestions
     setStagedAiSuggestionsForSave(prevStaged => {
         const updatedStaged = { ...prevStaged, ...appliedSuggestions };
+        // console.log("Staging suggestions for save:", updatedStaged);
         return updatedStaged;
     });
 
+    // If a specific suggestion should directly update the form (like image query or emoji)
     if (appliedSuggestions.suggestedImageQuery) {
       setImageQueryForForm(appliedSuggestions.suggestedImageQuery);
     }
     if (appliedSuggestions.suggestedEmoji) {
+      // This will be used by TaskForm to pre-fill or display the emoji
       setStagedEmojiForForm(appliedSuggestions.suggestedEmoji);
     }
 
@@ -470,15 +494,16 @@ export default function HomePage() {
       title: "AI Suggestion Queued",
       description: "The suggestion has been noted. Save the task to apply it, or use staged elements like the image query for generation.",
     });
-     setIsAiSuggestionsOpen(false);
+     setIsAiSuggestionsOpen(false); // Close dialog after applying/staging
   };
 
   const handleClearStagedEmoji = () => {
     setStagedEmojiForForm(null);
+    // Also remove it from stagedAiSuggestionsForSave if it's there
     setStagedAiSuggestionsForSave(prev => {
         if (!prev) return null;
-        const { suggestedEmoji, ...rest } = prev;
-        return Object.keys(rest).length > 0 ? rest : null;
+        const { suggestedEmoji, ...rest } = prev; // Destructure to remove suggestedEmoji
+        return Object.keys(rest).length > 0 ? rest : null; // Return null if object becomes empty
     });
   };
 
@@ -486,7 +511,7 @@ export default function HomePage() {
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === taskId
-          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } 
+          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } // Clear hint if a real image is added
           : task
       )
     );
@@ -547,7 +572,7 @@ export default function HomePage() {
         <AISuggestionsDialog
             isOpen={isAiSuggestionsOpen}
             onClose={() => setIsAiSuggestionsOpen(false)}
-            suggestions={rawAiOutputForDialog}
+            suggestions={rawAiOutputForDialog} // Pass the raw output
             onApplySuggestions={handleApplyAiSuggestions}
         />
       )}

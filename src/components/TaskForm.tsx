@@ -102,16 +102,21 @@ export const TaskForm: FC<TaskFormProps> = ({
 
   const watchedTags = watch('tags') || [];
   const currentTitle = watch('title');
+  const currentFormTitle = watch('title');
+
 
   useEffect(() => {
     let titleToSet = task?.title || '';
-    if (task && stagedEmoji) {
-       const titleParts = task.title.split(" ");
-       const firstPart = titleParts[0];
-       if (/\p{Emoji}/u.test(firstPart) && firstPart === stagedEmoji) {
-       } else if (/\p{Emoji}/u.test(firstPart) && firstPart !== stagedEmoji) {
-        titleToSet = task.title.replace(/^\p{Emoji_Presentation}\s*/u, '').trimStart();
+    // If there's a stagedEmoji, prepend it to the title, ensuring not to duplicate if already present
+    if (stagedEmoji) {
+      const emojiPattern = /^\p{Emoji_Presentation}\s*/u;
+      const currentTitleWithoutEmoji = titleToSet.replace(emojiPattern, '').trimStart();
+       if (!titleToSet.startsWith(stagedEmoji + ' ')) {
+         titleToSet = `${stagedEmoji} ${currentTitleWithoutEmoji}`;
        }
+    } else if (task?.title) {
+      // If no staged emoji, but task title had one, and form state might have cleared it, ensure original is shown
+       titleToSet = task.title;
     }
 
 
@@ -126,7 +131,31 @@ export const TaskForm: FC<TaskFormProps> = ({
       delegatedTo: task?.delegatedTo || '',
       imageUrl: task?.imageUrl || '',
     });
-  }, [task, reset, stagedEmoji]);
+  }, [task, reset, stagedEmoji]); // Rerun when task or stagedEmoji changes
+
+  useEffect(() => {
+    // Effect to update form title if stagedEmoji changes and form is for a new task or editing.
+    // This ensures the title input reflects the stagedEmoji visually.
+    const currentTitleValue = getValues('title');
+    let newTitle = currentTitleValue;
+    const emojiPattern = /^\p{Emoji_Presentation}\s*/u; // Regex to match emoji at the start of the string
+
+    if (stagedEmoji) {
+      const titleWithoutEmoji = currentTitleValue.replace(emojiPattern, '').trimStart();
+      if (!currentTitleValue.startsWith(stagedEmoji + ' ')) {
+        newTitle = `${stagedEmoji} ${titleWithoutEmoji}`;
+      }
+    } else {
+      // If stagedEmoji is cleared, remove any leading emoji from the title
+      newTitle = currentTitleValue.replace(emojiPattern, '').trimStart();
+    }
+    
+    if (newTitle !== currentTitleValue) {
+      setValue('title', newTitle, { shouldValidate: true, shouldDirty: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stagedEmoji, setValue]); // Only re-run if stagedEmoji changes
+
 
   const handleAddTag = () => {
     if (currentTag.trim() && !watchedTags.includes(currentTag.trim()) && watchedTags.length < 5) {
@@ -142,15 +171,36 @@ export const TaskForm: FC<TaskFormProps> = ({
   };
   
   const handleFormSubmit = (data: TaskFormData) => {
-    onSubmit(data); 
+    let submittedData = { ...data };
+    // Ensure the title submitted includes the staged emoji if present,
+    // or removes leading emoji if stagedEmoji was cleared.
+    const emojiPattern = /^\p{Emoji_Presentation}\s*/u;
+    if (stagedEmoji) {
+      const titleWithoutEmoji = data.title.replace(emojiPattern, '').trimStart();
+      if (!data.title.startsWith(stagedEmoji + ' ')) {
+        submittedData.title = `${stagedEmoji} ${titleWithoutEmoji}`;
+      }
+    } else {
+      submittedData.title = data.title.replace(emojiPattern, '').trimStart();
+    }
+    onSubmit(submittedData); 
   };
 
   const handleAiAssist = async () => {
     const formData = watch(); 
     let currentTitleForAI = formData.title || '';
-    if (stagedEmoji && !currentTitleForAI.startsWith(stagedEmoji)) {
-        currentTitleForAI = `${stagedEmoji} ${currentTitleForAI}`;
+    // If a staged emoji is present, ensure the title passed to AI includes it
+    const emojiPattern = /^\p{Emoji_Presentation}\s*/u;
+    if (stagedEmoji) {
+      const titleWithoutEmoji = currentTitleForAI.replace(emojiPattern, '').trimStart();
+      if (!currentTitleForAI.startsWith(stagedEmoji + ' ')) {
+         currentTitleForAI = `${stagedEmoji} ${titleWithoutEmoji}`;
+      }
+    } else {
+      // If no staged emoji, ensure title passed to AI does not have one from previous staging
+      currentTitleForAI = currentTitleForAI.replace(emojiPattern, '').trimStart();
     }
+
 
     const aiInput: AiTaskFormInput = {
       description: formData.description || currentTitleForAI || "New Task", 
@@ -162,7 +212,7 @@ export const TaskForm: FC<TaskFormProps> = ({
       imageUrl: formData.imageUrl || '',
     };
 
-    if (!aiInput.description) {
+    if (!aiInput.description && !currentTitleForAI) { // Check against potentially modified currentTitleForAI
         toast({ variant: "destructive", title: "Title or Description Required", description: "Please provide a title or description for AI assistance."});
         return;
     }
@@ -217,7 +267,9 @@ export const TaskForm: FC<TaskFormProps> = ({
     if (result && !('error' in result)) {
       let toastMessage = "";
       if (result.suggestedTitle) {
-        setValue('title', result.suggestedTitle, { shouldValidate: true });
+        // If there's a staged emoji, prepend it to the AI suggested title
+        const titleToSet = stagedEmoji ? `${stagedEmoji} ${result.suggestedTitle}` : result.suggestedTitle;
+        setValue('title', titleToSet, { shouldValidate: true });
         toastMessage += `Suggested title: "${result.suggestedTitle}". `;
       }
       if (result.suggestedDescription) {
@@ -290,7 +342,7 @@ export const TaskForm: FC<TaskFormProps> = ({
               )}
               <Label htmlFor="title" className="text-sm font-medium">Title</Label>
             </div>
-            {!task && !currentTitle && (
+            {!task && !currentFormTitle && ( // Use currentFormTitle to check if field is empty
               <Button 
                 type="button" 
                 variant="ghost" 
