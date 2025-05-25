@@ -1,6 +1,6 @@
 
 export type Priority = "low" | "medium" | "high";
-export type CurrentView = "grid" | "compactList"; // Added for view switching
+export type CurrentView = "grid" | "compactList" | "kanban" | "calendar" | "gantt"; // Added kanban, calendar, gantt
 
 export interface Subtask {
   id: string;
@@ -39,4 +39,13 @@ export interface AiTaskFormInput {
   reminder: string; // Needs to be string for AI
   tags: string[];
   imageUrl?: string;
+}
+
+// Specific types for Kanban
+export type KanbanColumnId = Priority | 'completed';
+
+export interface KanbanColumnType {
+  id: KanbanColumnId;
+  title: string;
+  tasks: Task[];
 }

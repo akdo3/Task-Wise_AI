@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import type { Task, CurrentView, Priority } from '@/types';
+import type { Task, CurrentView, Priority, KanbanColumnType, KanbanColumnId } from '@/types';
 import { TaskCard } from './TaskCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,8 @@ import { format, parseISO } from 'date-fns';
 import { CalendarDays, Edit3, Trash2, CheckCircle, Circle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { KanbanColumn } from './KanbanColumn';
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface TaskListProps {
   tasks: Task[];
@@ -132,18 +134,48 @@ const CompactListItem: FC<{ task: Task; onEdit: () => void; onDelete: () => void
   );
 };
 
+const KanbanBoardView: FC<TaskListProps> = ({ tasks, onEditTask }) => {
+  const columns: KanbanColumnType[] = [
+    { id: 'high', title: 'High Priority', tasks: [] },
+    { id: 'medium', title: 'Medium Priority', tasks: [] },
+    { id: 'low', title: 'Low Priority', tasks: [] },
+    { id: 'completed', title: 'Completed', tasks: [] },
+  ];
 
-export const TaskList: FC<TaskListProps> = ({ 
-  tasks, 
-  onEditTask, 
-  onDeleteTask, 
-  onToggleSubtask,
-  onToggleTaskComplete,
-  onUpdateTaskImage,
-  taskOfTheDayId,
-  currentView,
-}) => {
-  if (tasks.length === 0) {
+  tasks.forEach(task => {
+    if (task.completed) {
+      columns.find(col => col.id === 'completed')?.tasks.push(task);
+    } else {
+      columns.find(col => col.id === task.priority)?.tasks.push(task);
+    }
+  });
+  
+  // Sort tasks within each column, e.g., by creation date (newest first)
+  columns.forEach(column => {
+    column.tasks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  });
+
+  return (
+     <ScrollArea className="w-full whitespace-nowrap">
+      <div className="flex gap-0 pb-4 -mx-2">
+        {columns.map(column => (
+          <KanbanColumn
+            key={column.id}
+            column={column}
+            onEditTask={onEditTask}
+          />
+        ))}
+      </div>
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
+  );
+};
+
+
+export const TaskList: FC<TaskListProps> = (props) => {
+  const { tasks, currentView } = props;
+
+  if (tasks.length === 0 && (currentView !== 'calendar' && currentView !== 'gantt')) {
     return (
       <div className="text-center py-10">
         <h2 className="text-2xl font-semibold text-muted-foreground">No tasks yet!</h2>
@@ -151,6 +183,16 @@ export const TaskList: FC<TaskListProps> = ({
       </div>
     );
   }
+  
+  if (currentView === 'calendar' || currentView === 'gantt') {
+    return (
+      <div className="text-center py-10">
+        <h2 className="text-2xl font-semibold text-muted-foreground">{currentView === 'calendar' ? 'Calendar View' : 'Gantt Chart View'}</h2>
+        <p className="text-muted-foreground">This view is coming soon!</p>
+      </div>
+    );
+  }
+
 
   if (currentView === 'compactList') {
     return (
@@ -159,14 +201,18 @@ export const TaskList: FC<TaskListProps> = ({
           <CompactListItem
             key={task.id}
             task={task}
-            onEdit={() => onEditTask(task)}
-            onDelete={() => onDeleteTask(task.id)}
-            onToggleComplete={() => onToggleTaskComplete(task.id)}
-            isFocusTask={task.id === taskOfTheDayId && !task.completed}
+            onEdit={() => props.onEditTask(task)}
+            onDelete={() => props.onDeleteTask(task.id)}
+            onToggleComplete={() => props.onToggleTaskComplete(task.id)}
+            isFocusTask={task.id === props.taskOfTheDayId && !task.completed}
           />
         ))}
       </div>
     );
+  }
+  
+  if (currentView === 'kanban') {
+    return <KanbanBoardView {...props} />;
   }
 
   // Default to Grid View
@@ -176,12 +222,12 @@ export const TaskList: FC<TaskListProps> = ({
         <TaskCard 
           key={task.id} 
           task={task} 
-          onEdit={onEditTask} 
-          onDelete={onDeleteTask}
-          onToggleSubtask={onToggleSubtask}
-          onToggleComplete={onToggleTaskComplete}
-          onUpdateTaskImage={onUpdateTaskImage}
-          isFocusTask={task.id === taskOfTheDayId}
+          onEdit={props.onEditTask} 
+          onDelete={props.onDeleteTask}
+          onToggleSubtask={props.onToggleSubtask}
+          onToggleComplete={props.onToggleTaskComplete}
+          onUpdateTaskImage={props.onUpdateTaskImage}
+          isFocusTask={task.id === props.taskOfTheDayId}
         />
       ))}
     </div>

@@ -3,7 +3,7 @@
 import type { FC } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input"; // New import
-import { PlusCircle, Moon, Sun, Settings2, BarChartHorizontalBig, LayoutGrid, List, Filter, Search } from "lucide-react"; // Added Filter
+import { PlusCircle, Moon, Sun, Settings2, BarChartHorizontalBig, LayoutGrid, List, Filter, Search, Trello, CalendarDays as CalendarIconLucide, GanttChartSquare } from "lucide-react"; // Added Filter, Trello, Calendar, Gantt
 import { Logo } from "@/components/icons/Logo";
 import { useTheme } from '@/hooks/useTheme';
 import type { CurrentView } from '@/types';
@@ -15,9 +15,9 @@ interface HeaderProps {
   onOpenStats: () => void;
   currentView: CurrentView;
   onSetView: (view: CurrentView) => void;
-  searchTerm: string; // New prop
-  onSearchTermChange: (term: string) => void; // New prop
-  onOpenFilterDialog: () => void; // New prop
+  searchTerm: string; 
+  onSearchTermChange: (term: string) => void; 
+  onOpenFilterDialog: () => void; 
 }
 
 export const Header: FC<HeaderProps> = ({ 
@@ -26,7 +26,7 @@ export const Header: FC<HeaderProps> = ({
   onOpenStats, 
   currentView, 
   onSetView,
-  searchTerm, // Destructure new props
+  searchTerm, 
   onSearchTermChange,
   onOpenFilterDialog,
 }) => {
@@ -50,9 +50,9 @@ export const Header: FC<HeaderProps> = ({
           />
         </div>
 
-        <div className="flex items-center gap-1.5"> 
+        <div className="flex items-center gap-1"> 
           <Button 
-            onClick={onOpenFilterDialog} // Open filter dialog
+            onClick={onOpenFilterDialog} 
             variant="ghost" 
             size="icon" 
             aria-label="Open Filters"
@@ -68,6 +68,7 @@ export const Header: FC<HeaderProps> = ({
             size="icon" 
             aria-label="Grid View"
             className={cn(currentView === 'grid' && "bg-accent text-accent-foreground hover:bg-accent/90")}
+            title="Grid View"
           >
             <LayoutGrid className="h-5 w-5" />
           </Button>
@@ -77,19 +78,53 @@ export const Header: FC<HeaderProps> = ({
             size="icon" 
             aria-label="List View"
             className={cn(currentView === 'compactList' && "bg-accent text-accent-foreground hover:bg-accent/90")}
+            title="List View"
           >
             <List className="h-5 w-5" />
+          </Button>
+           <Button 
+            onClick={() => onSetView('kanban')} 
+            variant="ghost" 
+            size="icon" 
+            aria-label="Kanban View"
+            className={cn(currentView === 'kanban' && "bg-accent text-accent-foreground hover:bg-accent/90")}
+            title="Kanban View"
+          >
+            <Trello className="h-5 w-5" />
+          </Button>
+          {/* Placeholder buttons for future views */}
+           <Button 
+            onClick={() => onSetView('calendar')} 
+            variant="ghost" 
+            size="icon" 
+            aria-label="Calendar View (Coming Soon)"
+            className={cn(currentView === 'calendar' && "bg-accent text-accent-foreground hover:bg-accent/90", "opacity-50 cursor-not-allowed")}
+            title="Calendar View (Coming Soon)"
+            disabled
+          >
+            <CalendarIconLucide className="h-5 w-5" />
+          </Button>
+           <Button 
+            onClick={() => onSetView('gantt')} 
+            variant="ghost" 
+            size="icon" 
+            aria-label="Gantt Chart View (Coming Soon)"
+            className={cn(currentView === 'gantt' && "bg-accent text-accent-foreground hover:bg-accent/90", "opacity-50 cursor-not-allowed")}
+            title="Gantt Chart View (Coming Soon)"
+            disabled
+          >
+            <GanttChartSquare className="h-5 w-5" />
           </Button>
 
           <div className="h-6 w-px bg-border mx-1"></div>
 
-          <Button onClick={onOpenStats} variant="ghost" size="icon" aria-label="Open Statistics">
+          <Button onClick={onOpenStats} variant="ghost" size="icon" aria-label="Open Statistics" title="Open Statistics">
             <BarChartHorizontalBig className="h-5 w-5" />
           </Button>
-          <Button onClick={onOpenSettings} variant="ghost" size="icon" aria-label="Open Settings">
+          <Button onClick={onOpenSettings} variant="ghost" size="icon" aria-label="Open Settings" title="Open Settings">
             <Settings2 className="h-5 w-5" />
           </Button>
-          <Button onClick={toggleTheme} variant="ghost" size="icon" aria-label="Toggle theme">
+          <Button onClick={toggleTheme} variant="ghost" size="icon" aria-label="Toggle theme" title="Toggle Theme">
             {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </Button>
           <Button onClick={onAddTask} size="default" className="font-semibold">

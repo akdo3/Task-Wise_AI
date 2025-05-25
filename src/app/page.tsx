@@ -7,7 +7,7 @@ import { Header } from '@/components/layout/Header';
 import { TaskList } from '@/components/TaskList';
 import { TaskForm, type TaskFormData } from '@/components/TaskForm';
 import { AISuggestionsDialog, type AISuggestionsDialogCommonProps } from '@/components/AISuggestionsDialog';
-import { FilterDialog, type DialogFilterState } from '@/components/FilterDialog'; // New import
+import { FilterDialog, type DialogFilterState } from '@/components/FilterDialog';
 import { DailyMotivation } from '@/components/DailyMotivation';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -20,7 +20,7 @@ import type { ReviewTaskImageOutput, ReviewTaskImageInput } from "@/ai/flows/rev
 import { format, parseISO } from 'date-fns';
 import { TaskStatsDashboard } from '@/components/TaskStatsDashboard';
 
-export interface FilterState { // Exporting FilterState for use in Header and FilterDialog
+export interface FilterState {
   priority: Priority | 'all';
   dueDate: string;
   tags: string;
@@ -88,11 +88,11 @@ const sampleTasks: Task[] = [
     priority: 'low',
     dueDate: '2024-09-10',
     tags: ['health', 'personal'],
-    imageUrl: 'https://placehold.co/600x400.png',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    // imageUrl: 'https://placehold.co/600x400.png', // Removed to test placeholder with hint
     dataAiHint: 'medical health', 
     taskVibe: "Health Check",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     completed: true,
     completedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
   },
@@ -118,7 +118,7 @@ export default function HomePage() {
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false);
   const [currentView, setCurrentView] = useState<CurrentView>('grid');
-  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false); // New state for filter dialog
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
 
   useEffect(() => {
@@ -167,7 +167,14 @@ export default function HomePage() {
       setDailyMotivation(newMotivation);
       localStorage.setItem('dailyMotivation', JSON.stringify(newMotivation));
     } else {
-      console.error("Failed to fetch daily motivation:", result && 'error' in result ? result.error : "Unknown error");
+      const errorMsg = (result && 'error' in result ? result.error : "Unknown error");
+      console.error("Failed to fetch daily motivation:", errorMsg);
+       toast({
+        variant: "destructive",
+        title: "Motivation Fetch Error",
+        description: `Could not fetch daily wisdom: ${errorMsg}. Using a default.`,
+      });
+      setDailyMotivation({ quote: "The journey of a thousand miles begins with a single step.", date: currentDate });
     }
     setIsLoadingMotivation(false);
   };
@@ -186,6 +193,12 @@ export default function HomePage() {
             localStorage.removeItem('taskOfTheDay');
         }
     }
+    
+    if (!currentFocusTaskId && incompleteTasks.length === 0 && taskOfTheDayId){
+      currentFocusTaskId = null;
+      localStorage.removeItem('taskOfTheDay');
+    }
+
 
     if (!currentFocusTaskId) { 
         const today = new Date().toDateString();
@@ -270,12 +283,10 @@ export default function HomePage() {
     }));
   }, [tasks, filters, taskOfTheDayId]);
 
-  // Handler for search term changes from Header
   const handleSearchTermChange = (searchTerm: string) => {
     setFilters(prevFilters => ({ ...prevFilters, searchTerm }));
   };
 
-  // Handler for applying filters from FilterDialog
   const handleApplyDialogFilters = (dialogFilters: DialogFilterState) => {
     setFilters(prevFilters => ({
       ...prevFilters,
@@ -283,13 +294,12 @@ export default function HomePage() {
       dueDate: dialogFilters.dueDate,
       tags: dialogFilters.tags,
     }));
-    setIsFilterDialogOpen(false); // Close dialog after applying
+    setIsFilterDialogOpen(false); 
   };
   
-  // Handler to reset all filters
   const handleResetAllFilters = () => {
     setFilters(initialFilters);
-    setIsFilterDialogOpen(false); // Optionally close dialog if open
+    setIsFilterDialogOpen(false); 
   };
 
 
@@ -549,12 +559,14 @@ export default function HomePage() {
         else if (key === 'suggestedImageQuery') stagedItemDescription = "Image query staged";
         else if (key === 'suggestedTaskVibe') stagedItemDescription = "Task vibe staged";
         else if (key === 'suggestedReminderDate') stagedItemDescription = "Reminder date staged";
+         toast({ title: "AI Suggestion Staged", description: stagedItemDescription });
     } else if (relevantKeys.length > 1) {
         stagedItemDescription = "Multiple AI suggestions staged";
+         toast({ title: "AI Suggestions Staged", description: stagedItemDescription });
     }
     
-    if (relevantKeys.length > 0 || (appliedSuggestions.hasOwnProperty('generatedSubtasks') && Array.isArray(appliedSuggestions.generatedSubtasks) && appliedSuggestions.generatedSubtasks.length === 0) ) {
-      // Toasting for each staging action can be verbose, consider limiting it
+    if ( (appliedSuggestions.hasOwnProperty('generatedSubtasks') && Array.isArray(appliedSuggestions.generatedSubtasks) && appliedSuggestions.generatedSubtasks.length === 0) ) {
+      toast({ title: "AI Suggestion Staged", description: "Generated subtasks selection cleared." });
     }
   };
 
@@ -591,13 +603,12 @@ export default function HomePage() {
             onOpenStats={() => setIsStatsDialogOpen(true)}
             currentView={currentView}
             onSetView={setCurrentView}
-            searchTerm={filters.searchTerm} // Pass searchTerm to Header
-            onSearchTermChange={handleSearchTermChange} // Pass handler to Header
-            onOpenFilterDialog={() => setIsFilterDialogOpen(true)} // Handler to open filter dialog
+            searchTerm={filters.searchTerm} 
+            onSearchTermChange={handleSearchTermChange} 
+            onOpenFilterDialog={() => setIsFilterDialogOpen(true)} 
         />
-        <main className="flex-grow container mx-auto px-4 py-12">
+        <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
           <DailyMotivation motivation={dailyMotivation} isLoading={isLoadingMotivation} />
-          {/* TaskFilterControls removed from here */}
           <TaskList
             tasks={filteredTasks}
             onEditTask={handleOpenTaskForm}
@@ -681,7 +692,7 @@ export default function HomePage() {
         }}
         onApplyFilters={handleApplyDialogFilters}
         onResetAllFilters={handleResetAllFilters}
-        initialDialogFilters={{ // Pass initial non-search filters for dialog's own reset
+        initialDialogFilters={{ 
             priority: initialFilters.priority,
             dueDate: initialFilters.dueDate,
             tags: initialFilters.tags,
@@ -691,4 +702,3 @@ export default function HomePage() {
     </TooltipProvider>
   );
 }
-
