@@ -179,6 +179,47 @@ export default function HomePage() {
     setIsLoadingMotivation(false);
   };
 
+  const applyFilters = useCallback(() => {
+    let tempTasks = [...tasks];
+
+    if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
+      tempTasks = tempTasks.filter(
+        (task) =>
+          task.title.toLowerCase().includes(term) ||
+          (task.description && task.description.toLowerCase().includes(term))
+      );
+    }
+
+    if (filters.priority !== 'all') {
+      tempTasks = tempTasks.filter((task) => task.priority === filters.priority);
+    }
+
+    if (filters.dueDate) {
+      tempTasks = tempTasks.filter((task) => task.dueDate === filters.dueDate);
+    }
+
+    if (filters.tags) {
+      const filterTags = filters.tags.toLowerCase().split(',').map(t => t.trim()).filter(t => t);
+      if (filterTags.length > 0) {
+        tempTasks = tempTasks.filter((task) =>
+          filterTags.every(ft => task.tags.map(t => t.toLowerCase()).includes(ft))
+        );
+      }
+    }
+    
+    setFilteredTasks(tempTasks.sort((a,b) => {
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1;
+      }
+      if (taskOfTheDayId) {
+        if (a.id === taskOfTheDayId) return -1;
+        if (b.id === taskOfTheDayId) return 1;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }));
+  }, [tasks, filters, taskOfTheDayId]);
+
  useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
     applyFilters();
@@ -238,50 +279,8 @@ export default function HomePage() {
     }
 
     setTaskOfTheDayId(currentFocusTaskId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks]); 
+  }, [tasks, filters, taskOfTheDayId, applyFilters]); 
 
-
-  const applyFilters = useCallback(() => {
-    let tempTasks = [...tasks];
-
-    if (filters.searchTerm) {
-      const term = filters.searchTerm.toLowerCase();
-      tempTasks = tempTasks.filter(
-        (task) =>
-          task.title.toLowerCase().includes(term) ||
-          (task.description && task.description.toLowerCase().includes(term))
-      );
-    }
-
-    if (filters.priority !== 'all') {
-      tempTasks = tempTasks.filter((task) => task.priority === filters.priority);
-    }
-
-    if (filters.dueDate) {
-      tempTasks = tempTasks.filter((task) => task.dueDate === filters.dueDate);
-    }
-
-    if (filters.tags) {
-      const filterTags = filters.tags.toLowerCase().split(',').map(t => t.trim()).filter(t => t);
-      if (filterTags.length > 0) {
-        tempTasks = tempTasks.filter((task) =>
-          filterTags.every(ft => task.tags.map(t => t.toLowerCase()).includes(ft))
-        );
-      }
-    }
-    
-    setFilteredTasks(tempTasks.sort((a,b) => {
-      if (a.completed !== b.completed) {
-        return a.completed ? 1 : -1;
-      }
-      if (taskOfTheDayId) {
-        if (a.id === taskOfTheDayId) return -1;
-        if (b.id === taskOfTheDayId) return 1;
-      }
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }));
-  }, [tasks, filters, taskOfTheDayId]);
 
   const handleSearchTermChange = (searchTerm: string) => {
     setFilters(prevFilters => ({ ...prevFilters, searchTerm }));
