@@ -58,6 +58,16 @@
     --chart-3: 200 80% 55%; /* Medium Sky Blue */
     --chart-4: 45 90% 55%; /* Golden Yellow */
     --chart-5: 270 60% 65%; /* Soft Lavender */
+
+    /* Sidebar specific colors - Light Theme */
+    --sidebar-background: 200 25% 96%; /* Slightly off-white, matching light page background */
+    --sidebar-foreground: 200 25% 25%; /* Darker foreground for readability */
+    --sidebar-primary: 180 70% 38%; /* Primary color for sidebar accents */
+    --sidebar-primary-foreground: 0 0% 100%; /* Text on primary sidebar accents */
+    --sidebar-accent: 190 30% 90%; /* Hover/active state for sidebar items */
+    --sidebar-accent-foreground: 180 70% 30%; /* Text on sidebar accent items */
+    --sidebar-border: 190 20% 88%; /* Border color for sidebar elements */
+    --sidebar-ring: 180 70% 45%; /* Focus ring for sidebar */
   }
 
   .dark {
@@ -112,6 +122,16 @@
     --chart-3: 200 70% 60%; /* Brighter Sky Blue */
     --chart-4: 45 80% 60%; /* Brighter Golden Yellow */
     --chart-5: 270 50% 70%; /* Brighter Soft Lavender */
+
+     /* Sidebar specific colors - Dark Theme */
+    --sidebar-background: 200 30% 12%; /* Dark background, slightly different from main */
+    --sidebar-foreground: 200 15% 85%; /* Light foreground for readability */
+    --sidebar-primary: 180 70% 50%; /* Primary color for sidebar accents */
+    --sidebar-primary-foreground: 0 0% 95%; /* Text on primary sidebar accents */
+    --sidebar-accent: 190 25% 22%; /* Hover/active state for sidebar items */
+    --sidebar-accent-foreground: 180 70% 70%; /* Text on sidebar accent items */
+    --sidebar-border: 190 20% 28%; /* Border color for sidebar elements */
+    --sidebar-ring: 180 70% 50%; /* Focus ring for sidebar */
   }
 }
 
@@ -130,21 +150,28 @@
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted)) hsl(var(--background));
+    /* Thumb color then Track color */
+    scrollbar-color: hsl(var(--border)) hsl(var(--background));
   }
   .scrollbar-thin::-webkit-scrollbar {
-    width: 8px;
+    width: 8px; 
     height: 8px;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: hsl(var(--background));
-    border-radius: var(--radius);
+    border-radius: var(--radius); 
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted));
-    border-radius: var(--radius);
-    border: 2px solid hsl(var(--background));
+    background-color: hsl(var(--border)); 
+    border-radius: var(--radius); 
+    /* Create a "padding" effect so thumb doesn't touch edges */
+    border: 2px solid hsl(var(--background)); 
   }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground)); /* Darken thumb on hover */
+  }
+
+  /* These are specific overrides, keep them if used elsewhere */
    .scrollbar-thumb-muted::-webkit-scrollbar-thumb {
     background-color: hsl(var(--muted));
   }
