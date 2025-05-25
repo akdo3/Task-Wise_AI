@@ -2,13 +2,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Task, Subtask, AiTaskFormInput, CurrentView } from '@/types';
+import type { Task, Subtask, AiTaskFormInput, CurrentView, Priority } from '@/types';
 import { Header } from '@/components/layout/Header';
 import { TaskList } from '@/components/TaskList';
 import { TaskForm, type TaskFormData } from '@/components/TaskForm';
-import { TaskFilterControls, type FilterState } from '@/components/TaskFilterControls';
 import { AISuggestionsDialog, type AISuggestionsDialogCommonProps } from '@/components/AISuggestionsDialog';
-// TaskStatsDashboard removed from direct import, accessed via dialog
+import { FilterDialog, type DialogFilterState } from '@/components/FilterDialog'; // New import
 import { DailyMotivation } from '@/components/DailyMotivation';
 import { SettingsDialog } from '@/components/SettingsDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -21,6 +20,12 @@ import type { ReviewTaskImageOutput, ReviewTaskImageInput } from "@/ai/flows/rev
 import { format, parseISO } from 'date-fns';
 import { TaskStatsDashboard } from '@/components/TaskStatsDashboard';
 
+export interface FilterState { // Exporting FilterState for use in Header and FilterDialog
+  priority: Priority | 'all';
+  dueDate: string;
+  tags: string;
+  searchTerm: string;
+}
 
 const initialFilters: FilterState = {
   priority: 'all',
@@ -83,6 +88,7 @@ const sampleTasks: Task[] = [
     priority: 'low',
     dueDate: '2024-09-10',
     tags: ['health', 'personal'],
+    imageUrl: 'https://placehold.co/600x400.png',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     dataAiHint: 'medical health', 
@@ -112,6 +118,7 @@ export default function HomePage() {
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState(false);
   const [currentView, setCurrentView] = useState<CurrentView>('grid');
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false); // New state for filter dialog
 
 
   useEffect(() => {
@@ -172,7 +179,6 @@ export default function HomePage() {
     let currentFocusTaskId: string | null = taskOfTheDayId; 
     const incompleteTasks = tasks.filter((t) => !t.completed);
 
-    // If there's a task of the day, check if it's still valid (exists and incomplete)
     if(currentFocusTaskId){
         const focusTaskStillExistsAndValid = incompleteTasks.find(t => t.id === currentFocusTaskId);
         if(!focusTaskStillExistsAndValid){ 
@@ -181,7 +187,6 @@ export default function HomePage() {
         }
     }
 
-    // If no current focus task (either initially, or because previous was invalidated)
     if (!currentFocusTaskId) { 
         const today = new Date().toDateString();
         const storedTaskOfTheDayString = localStorage.getItem('taskOfTheDay');
@@ -189,7 +194,6 @@ export default function HomePage() {
         if (storedTaskOfTheDayString) {
             try {
                 const storedTaskOfTheDay: { id: string; date: string } = JSON.parse(storedTaskOfTheDayString);
-                // Check if stored task is for today and still exists and is incomplete
                 const taskStillExistsAndValid = incompleteTasks.find(t => t.id === storedTaskOfTheDay.id);
                 if (storedTaskOfTheDay.date === today && taskStillExistsAndValid) {
                     currentFocusTaskId = storedTaskOfTheDay.id;
@@ -202,7 +206,6 @@ export default function HomePage() {
             }
         }
         
-        // If still no focus task, and there are incomplete tasks, select a new one
         if (!currentFocusTaskId && incompleteTasks.length > 0) {
             let candidates = incompleteTasks.filter(t => t.priority === 'high');
             if (candidates.length === 0) candidates = incompleteTasks.filter(t => t.priority === 'medium');
@@ -216,7 +219,6 @@ export default function HomePage() {
         }
     }
     
-    // If all tasks are complete, clear the focus task
     if (incompleteTasks.length === 0 && currentFocusTaskId) { 
         currentFocusTaskId = null;
         localStorage.removeItem('taskOfTheDay');
@@ -268,6 +270,28 @@ export default function HomePage() {
     }));
   }, [tasks, filters, taskOfTheDayId]);
 
+  // Handler for search term changes from Header
+  const handleSearchTermChange = (searchTerm: string) => {
+    setFilters(prevFilters => ({ ...prevFilters, searchTerm }));
+  };
+
+  // Handler for applying filters from FilterDialog
+  const handleApplyDialogFilters = (dialogFilters: DialogFilterState) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      priority: dialogFilters.priority,
+      dueDate: dialogFilters.dueDate,
+      tags: dialogFilters.tags,
+    }));
+    setIsFilterDialogOpen(false); // Close dialog after applying
+  };
+  
+  // Handler to reset all filters
+  const handleResetAllFilters = () => {
+    setFilters(initialFilters);
+    setIsFilterDialogOpen(false); // Optionally close dialog if open
+  };
+
 
   const handleOpenTaskForm = (task: Task | null = null) => {
     setEditingTask(task);
@@ -275,7 +299,7 @@ export default function HomePage() {
     if (task) {
         const titleParts = task.title.split(" ");
         const firstPart = titleParts[0];
-        if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { // Basic emoji check
+        if (/\p{Emoji}/u.test(firstPart) && firstPart.length <= 2) { 
             setStagedEmojiForForm(firstPart);
         }
     }
@@ -478,11 +502,9 @@ export default function HomePage() {
 
     if (result && !('error' in result)) {
       const dialogPayload: AISuggestionsDialogCommonProps['suggestions'] = {
-        // Ensure all AiTaskAssistantOutput fields are present or appropriately defaulted if not part of ReviewTaskImageOutput
-        approachSuggestions: [], // Default or existing
-        improvedDescription: '', // Default or existing
-        generatedSubtasks: [],   // Default or existing
-        // suggestedEmoji, suggestedTagline, suggestedTaskVibe, suggestedReminderDate might be null or based on current task if editing
+        approachSuggestions: [], 
+        improvedDescription: '', 
+        generatedSubtasks: [],  
         imageReviewFeedback: result.feedback,
         suggestedImageQuery: result.suggestedImageQuery,
       };
@@ -500,7 +522,6 @@ export default function HomePage() {
   const handleApplyAiSuggestions = (appliedSuggestions: Partial<AiTaskAssistantOutput & { imageReviewFeedback?: string }>) => {
     setStagedAiSuggestionsForSave(prevStaged => {
         const updatedStaged = { ...prevStaged, ...appliedSuggestions };
-        // Ensure generatedSubtasks is explicitly set if it's in appliedSuggestions, even if empty
         if (appliedSuggestions.hasOwnProperty('generatedSubtasks') && Array.isArray(appliedSuggestions.generatedSubtasks) && appliedSuggestions.generatedSubtasks.length === 0) {
             updatedStaged.generatedSubtasks = [];
         }
@@ -528,28 +549,21 @@ export default function HomePage() {
         else if (key === 'suggestedImageQuery') stagedItemDescription = "Image query staged";
         else if (key === 'suggestedTaskVibe') stagedItemDescription = "Task vibe staged";
         else if (key === 'suggestedReminderDate') stagedItemDescription = "Reminder date staged";
-        // Add other specific messages as needed
     } else if (relevantKeys.length > 1) {
         stagedItemDescription = "Multiple AI suggestions staged";
     }
     
-    // Only toast if actual suggestions (not just imageReviewFeedback or empty generatedSubtasks) were staged
     if (relevantKeys.length > 0 || (appliedSuggestions.hasOwnProperty('generatedSubtasks') && Array.isArray(appliedSuggestions.generatedSubtasks) && appliedSuggestions.generatedSubtasks.length === 0) ) {
-      // Optional: uncomment if you want toasts for every staging action
-      // toast({
-      //   title: "AI Suggestion Staged",
-      //   description: `${stagedItemDescription}. Save the task to apply it, or use staged elements like the image query directly.`,
-      // });
+      // Toasting for each staging action can be verbose, consider limiting it
     }
   };
 
   const handleClearStagedEmoji = () => {
     setStagedEmojiForForm(null);
-    // Also remove it from the main staged suggestions if it exists there
     setStagedAiSuggestionsForSave(prev => {
         if (!prev) return null;
-        const { suggestedEmoji, ...rest } = prev; // Remove suggestedEmoji
-        return Object.keys(rest).length > 0 ? rest : null; // Return null if no other suggestions are staged
+        const { suggestedEmoji, ...rest } = prev; 
+        return Object.keys(rest).length > 0 ? rest : null; 
     });
   };
 
@@ -557,7 +571,7 @@ export default function HomePage() {
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === taskId
-          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } // Clear dataAiHint when new image is set
+          ? { ...task, imageUrl: newImageUrl, updatedAt: new Date().toISOString(), dataAiHint: undefined } 
           : task
       )
     );
@@ -577,10 +591,13 @@ export default function HomePage() {
             onOpenStats={() => setIsStatsDialogOpen(true)}
             currentView={currentView}
             onSetView={setCurrentView}
+            searchTerm={filters.searchTerm} // Pass searchTerm to Header
+            onSearchTermChange={handleSearchTermChange} // Pass handler to Header
+            onOpenFilterDialog={() => setIsFilterDialogOpen(true)} // Handler to open filter dialog
         />
         <main className="flex-grow container mx-auto px-4 py-12">
           <DailyMotivation motivation={dailyMotivation} isLoading={isLoadingMotivation} />
-          <TaskFilterControls onFilterChange={setFilters} initialFilters={initialFilters} />
+          {/* TaskFilterControls removed from here */}
           <TaskList
             tasks={filteredTasks}
             onEditTask={handleOpenTaskForm}
@@ -654,6 +671,24 @@ export default function HomePage() {
         </DialogContent>
       </Dialog>
 
+      <FilterDialog
+        isOpen={isFilterDialogOpen}
+        onOpenChange={setIsFilterDialogOpen}
+        currentDialogFilters={{
+          priority: filters.priority,
+          dueDate: filters.dueDate,
+          tags: filters.tags,
+        }}
+        onApplyFilters={handleApplyDialogFilters}
+        onResetAllFilters={handleResetAllFilters}
+        initialDialogFilters={{ // Pass initial non-search filters for dialog's own reset
+            priority: initialFilters.priority,
+            dueDate: initialFilters.dueDate,
+            tags: initialFilters.tags,
+        }}
+      />
+
     </TooltipProvider>
   );
 }
+
