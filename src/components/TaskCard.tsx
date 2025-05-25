@@ -249,7 +249,7 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
               onClick={handleToggleCompleteAndCelebrate}
               className={cn(
                 "relative text-muted-foreground",
-                task.completed ? "hover:text-yellow-500 dark:hover:text-yellow-400" : "hover:text-green-500 dark:hover:text-green-400"
+                task.completed ? "hover:text-accent" : "hover:text-primary"
               )}
             >
               {task.completed ? <Circle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
@@ -297,3 +297,4 @@ export const TaskCard: FC<TaskCardProps> = ({ task, onEdit, onDelete, onToggleSu
     </Card>
   );
 };
+

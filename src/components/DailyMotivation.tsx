@@ -18,7 +18,7 @@ export const DailyMotivation: FC<DailyMotivationProps> = ({ motivation, isLoadin
       <Card className="mb-8 shadow-md animate-pulse">
         <CardHeader>
           <CardTitle className="text-lg flex items-center">
-            <Lightbulb className="mr-2 h-5 w-5 text-yellow-400" />
+            <Lightbulb className="mr-2 h-5 w-5 text-muted-foreground" />
             Daily Dose of Wisdom
           </CardTitle>
         </CardHeader>
@@ -41,7 +41,7 @@ export const DailyMotivation: FC<DailyMotivationProps> = ({ motivation, isLoadin
         )}>
       <CardHeader>
         <CardTitle className="text-lg flex items-center text-accent/90">
-          <Lightbulb className="mr-2 h-5 w-5 text-yellow-400 fill-yellow-400/50" />
+          <Lightbulb className="mr-2 h-5 w-5 text-accent fill-accent/50" />
           Daily Dose of Wisdom
         </CardTitle>
       </CardHeader>
