@@ -2,8 +2,8 @@
 "use client";
 import type { FC } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // New import
-import { PlusCircle, Moon, Sun, Settings2, BarChartHorizontalBig, LayoutGrid, List, Filter, Search, Trello, CalendarDays as CalendarIconLucide, GanttChartSquare } from "lucide-react"; // Added Filter, Trello, Calendar, Gantt
+import { Input } from "@/components/ui/input";
+import { PlusCircle, Moon, Sun, Settings2, BarChartHorizontalBig, LayoutGrid, List, Filter, Search, Trello, CalendarDays as CalendarIconLucide, GanttChartSquare, Eye } from "lucide-react";
 import { Logo } from "@/components/icons/Logo";
 import { useTheme } from '@/hooks/useTheme';
 import type { CurrentView } from '@/types';
@@ -15,22 +15,46 @@ interface HeaderProps {
   onOpenStats: () => void;
   currentView: CurrentView;
   onSetView: (view: CurrentView) => void;
-  searchTerm: string; 
-  onSearchTermChange: (term: string) => void; 
-  onOpenFilterDialog: () => void; 
+  searchTerm: string;
+  onSearchTermChange: (term: string) => void;
+  onOpenFilterDialog: () => void;
 }
 
-export const Header: FC<HeaderProps> = ({ 
-  onAddTask, 
-  onOpenSettings, 
-  onOpenStats, 
-  currentView, 
+const implementedViews: CurrentView[] = ['grid', 'compactList', 'kanban'];
+
+const viewIcons: Record<CurrentView, JSX.Element> = {
+  grid: <LayoutGrid className="h-5 w-5" />,
+  compactList: <List className="h-5 w-5" />,
+  kanban: <Trello className="h-5 w-5" />,
+  calendar: <CalendarIconLucide className="h-5 w-5" />, // For future use in settings
+  gantt: <GanttChartSquare className="h-5 w-5" />, // For future use in settings
+};
+
+const viewNames: Record<CurrentView, string> = {
+  grid: "Grid",
+  compactList: "List",
+  kanban: "Kanban",
+  calendar: "Calendar",
+  gantt: "Gantt",
+};
+
+export const Header: FC<HeaderProps> = ({
+  onAddTask,
+  onOpenSettings,
+  onOpenStats,
+  currentView,
   onSetView,
-  searchTerm, 
+  searchTerm,
   onSearchTermChange,
   onOpenFilterDialog,
 }) => {
   const { theme, toggleTheme } = useTheme();
+
+  const handleCycleView = () => {
+    const currentIndex = implementedViews.indexOf(currentView);
+    const nextIndex = (currentIndex + 1) % implementedViews.length;
+    onSetView(implementedViews[nextIndex]);
+  };
 
   return (
     <header className="bg-card sticky top-0 z-50 border-b border-border/50">
@@ -41,80 +65,40 @@ export const Header: FC<HeaderProps> = ({
 
         <div className="flex-grow max-w-sm md:max-w-md lg:max-w-lg relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            type="search" 
-            placeholder="Search tasks..." 
-            className="pl-10 h-9 w-full" 
+          <Input
+            type="search"
+            placeholder="Search tasks..."
+            className="pl-10 h-9 w-full"
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
           />
         </div>
 
-        <div className="flex items-center gap-1"> 
-          <Button 
-            onClick={onOpenFilterDialog} 
-            variant="ghost" 
-            size="icon" 
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={onOpenFilterDialog}
+            variant="ghost"
+            size="icon"
             aria-label="Open Filters"
+            title="Filter Tasks"
           >
             <Filter className="h-5 w-5" />
           </Button>
-          
-          <div className="h-6 w-px bg-border mx-1"></div>
 
-          <Button 
-            onClick={() => onSetView('grid')} 
-            variant="ghost" 
-            size="icon" 
-            aria-label="Grid View"
-            className={cn(currentView === 'grid' && "bg-accent text-accent-foreground hover:bg-accent/90")}
-            title="Grid View"
+          <div className="h-6 w-px bg-border mx-1"></div>
+          
+          <Button
+            onClick={handleCycleView}
+            variant="outline"
+            size="default"
+            className="h-9 px-3"
+            aria-label={`Current view: ${viewNames[currentView]}. Click to cycle view.`}
+            title={`Cycle View (Current: ${viewNames[currentView]})`}
           >
-            <LayoutGrid className="h-5 w-5" />
+            {viewIcons[currentView]}
+            <span className="ml-2 hidden sm:inline">{viewNames[currentView]}</span>
           </Button>
-          <Button 
-            onClick={() => onSetView('compactList')} 
-            variant="ghost" 
-            size="icon" 
-            aria-label="List View"
-            className={cn(currentView === 'compactList' && "bg-accent text-accent-foreground hover:bg-accent/90")}
-            title="List View"
-          >
-            <List className="h-5 w-5" />
-          </Button>
-           <Button 
-            onClick={() => onSetView('kanban')} 
-            variant="ghost" 
-            size="icon" 
-            aria-label="Kanban View"
-            className={cn(currentView === 'kanban' && "bg-accent text-accent-foreground hover:bg-accent/90")}
-            title="Kanban View"
-          >
-            <Trello className="h-5 w-5" />
-          </Button>
-          {/* Placeholder buttons for future views */}
-           <Button 
-            onClick={() => onSetView('calendar')} 
-            variant="ghost" 
-            size="icon" 
-            aria-label="Calendar View (Coming Soon)"
-            className={cn(currentView === 'calendar' && "bg-accent text-accent-foreground hover:bg-accent/90", "opacity-50 cursor-not-allowed")}
-            title="Calendar View (Coming Soon)"
-            disabled
-          >
-            <CalendarIconLucide className="h-5 w-5" />
-          </Button>
-           <Button 
-            onClick={() => onSetView('gantt')} 
-            variant="ghost" 
-            size="icon" 
-            aria-label="Gantt Chart View (Coming Soon)"
-            className={cn(currentView === 'gantt' && "bg-accent text-accent-foreground hover:bg-accent/90", "opacity-50 cursor-not-allowed")}
-            title="Gantt Chart View (Coming Soon)"
-            disabled
-          >
-            <GanttChartSquare className="h-5 w-5" />
-          </Button>
+
 
           <div className="h-6 w-px bg-border mx-1"></div>
 

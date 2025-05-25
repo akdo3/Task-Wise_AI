@@ -663,6 +663,8 @@ export default function HomePage() {
       <SettingsDialog 
         isOpen={isSettingsDialogOpen}
         onClose={() => setIsSettingsDialogOpen(false)}
+        currentView={currentView}
+        onSetView={setCurrentView}
       />
 
       <Dialog open={isStatsDialogOpen} onOpenChange={setIsStatsDialogOpen}>
