@@ -53,12 +53,12 @@ const CompactListItem: FC<{ task: Task; onEdit: () => void; onDelete: () => void
   return (
     <div
       className={cn(
-        "p-4 border-b hover:bg-muted/30 transition-colors rounded-lg mb-2 shadow-sm",
+        "p-3 sm:p-4 border-b hover:bg-muted/30 transition-colors rounded-lg mb-2 shadow-sm",
         task.completed && "opacity-60 dark:opacity-50 bg-muted/20",
         isFocusTask && !task.completed && "ring-2 ring-accent ring-offset-2 ring-offset-background dark:ring-offset-card"
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2 sm:gap-3">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -66,11 +66,11 @@ const CompactListItem: FC<{ task: Task; onEdit: () => void; onDelete: () => void
               size="icon"
               onClick={onToggleComplete}
               className={cn(
-                "h-7 w-7 shrink-0 text-muted-foreground mt-0.5",
+                "h-6 w-6 sm:h-7 sm:w-7 shrink-0 text-muted-foreground mt-0.5",
                 task.completed ? "hover:text-accent" : "hover:text-primary"
               )}
             >
-              {task.completed ? <CheckCircle className="h-5 w-5 text-accent" /> : <Circle className="h-5 w-5" />}
+              {task.completed ? <CheckCircle className="h-4 sm:h-5 w-4 sm:w-5 text-accent" /> : <Circle className="h-4 sm:h-5 w-4 sm:w-5" />}
               <span className="sr-only">{task.completed ? 'Mark as Incomplete' : 'Mark as Complete'}</span>
             </Button>
           </TooltipTrigger>
@@ -81,7 +81,7 @@ const CompactListItem: FC<{ task: Task; onEdit: () => void; onDelete: () => void
           <div className="flex items-center justify-between">
             <p
               className={cn(
-                "text-base font-semibold cursor-pointer hover:underline",
+                "text-sm sm:text-base font-semibold cursor-pointer hover:underline",
                 task.completed && "line-through text-muted-foreground"
               )}
               onClick={onEdit}
@@ -92,7 +92,7 @@ const CompactListItem: FC<{ task: Task; onEdit: () => void; onDelete: () => void
             <Badge
               variant="outline"
               className={cn(
-                "capitalize text-xs px-2 py-0.5 font-medium shrink-0",
+                "capitalize text-xs px-1.5 sm:px-2 py-0.5 font-medium shrink-0",
                 badgeConfig.baseBg,
                 badgeConfig.text,
                 badgeConfig.border,
@@ -105,12 +105,12 @@ const CompactListItem: FC<{ task: Task; onEdit: () => void; onDelete: () => void
           </div>
 
           {task.description && (
-            <p className={cn("text-sm text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap", task.completed && "line-through opacity-70")}>
+            <p className={cn("text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap", task.completed && "line-through opacity-70")}>
               {task.description}
             </p>
           )}
 
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
             {task.dueDate && (
               <div className={cn("flex items-center", task.completed && "line-through opacity-70")}>
                 <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
@@ -139,21 +139,21 @@ const CompactListItem: FC<{ task: Task; onEdit: () => void; onDelete: () => void
 
 
           {task.tags.length > 0 && (
-            <div className={cn("flex flex-wrap gap-1.5 mt-2.5", task.completed && "opacity-70")}>
+            <div className={cn("flex flex-wrap gap-1 mt-2", task.completed && "opacity-70")}>
               {task.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground">{tag}</Badge>
+                <Badge key={tag} variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground">{tag}</Badge>
               ))}
             </div>
           )}
 
           {task.subtasks.length > 0 && (
-             <div className={cn("mt-2.5", task.completed && "opacity-70")}>
-               <h4 className="text-xs font-medium text-muted-foreground">SUBTASKS ({completedSubtasks}/{totalSubtasks})</h4>
-               <Progress value={subtaskProgressPercentage} className="h-1.5 w-full mt-1 mb-1.5" aria-label={`${subtaskProgressPercentage.toFixed(0)}% of subtasks complete`} />
-               <ul className="space-y-1 max-h-20 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent pr-1">
+             <div className={cn("mt-2", task.completed && "opacity-70")}>
+               <h4 className="text-[11px] sm:text-xs font-medium text-muted-foreground">SUBTASKS ({completedSubtasks}/{totalSubtasks})</h4>
+               <Progress value={subtaskProgressPercentage} className="h-1 sm:h-1.5 w-full mt-1 mb-1.5" aria-label={`${subtaskProgressPercentage.toFixed(0)}% of subtasks complete`} />
+               <ul className="space-y-0.5 max-h-20 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent pr-1">
                  {task.subtasks.map(subtask => (
-                   <li key={subtask.id} className="flex items-center text-xs cursor-pointer hover:bg-muted/50 p-1 rounded" onClick={() => !task.completed && onToggleSubtask(task.id, subtask.id)}>
-                     {subtask.completed ? <CheckCircle className="h-3.5 w-3.5 mr-2 text-accent flex-shrink-0" /> : <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground/50 flex-shrink-0" />}
+                   <li key={subtask.id} className="flex items-center text-xs sm:text-sm cursor-pointer hover:bg-muted/50 p-0.5 sm:p-1 rounded" onClick={() => !task.completed && onToggleSubtask(task.id, subtask.id)}>
+                     {subtask.completed ? <CheckCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5 mr-1.5 sm:mr-2 text-accent flex-shrink-0" /> : <Circle className="h-3 sm:h-3.5 w-3 sm:w-3.5 mr-1.5 sm:mr-2 text-muted-foreground/50 flex-shrink-0" />}
                      <span className={cn("truncate", subtask.completed ? 'line-through text-muted-foreground' : 'text-foreground', task.completed && subtask.completed && 'text-muted-foreground', task.completed && !subtask.completed && 'text-foreground/70')}>{subtask.text}</span>
                    </li>
                  ))}
@@ -168,11 +168,11 @@ const CompactListItem: FC<{ task: Task; onEdit: () => void; onDelete: () => void
             )}
         </div>
 
-        <div className="flex flex-col gap-1 shrink-0">
+        <div className="flex flex-col gap-0.5 sm:gap-1 shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onEdit} className="h-7 w-7 text-muted-foreground hover:text-primary" disabled={task.completed}>
-                <Edit3 className="h-4 w-4" />
+              <Button variant="ghost" size="icon" onClick={onEdit} className="h-6 w-6 sm:h-7 sm:w-7 text-muted-foreground hover:text-primary" disabled={task.completed}>
+                <Edit3 className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
                 <span className="sr-only">Edit Task</span>
               </Button>
             </TooltipTrigger>
@@ -180,8 +180,8 @@ const CompactListItem: FC<{ task: Task; onEdit: () => void; onDelete: () => void
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-muted-foreground hover:text-destructive">
-                <Trash2 className="h-4 w-4" />
+              <Button variant="ghost" size="icon" onClick={onDelete} className="h-6 w-6 sm:h-7 sm:w-7 text-muted-foreground hover:text-destructive">
+                <Trash2 className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
                 <span className="sr-only">Delete Task</span>
               </Button>
             </TooltipTrigger>
@@ -209,10 +209,8 @@ const KanbanBoardView: FC<TaskListProps> = ({ tasks, onEditTask, taskOfTheDayId 
     }
   });
 
-  // Sort tasks within each column, e.g., by creation date (newest first)
-  // Also ensure focus task is at the top of its respective active column
   columns.forEach(column => {
-    if (column.id !== 'completed') { // Don't re-sort completed, focus task is only for active
+    if (column.id !== 'completed') { 
         column.tasks.sort((a, b) => {
         if (taskOfTheDayId) {
             if (a.id === taskOfTheDayId) return -1;
@@ -256,10 +254,16 @@ export const TaskList: FC<TaskListProps> = (props) => {
   }
 
   if (currentView === 'calendar' || currentView === 'gantt') {
+    const Icon = currentView === 'calendar' ? CalendarDays : GanttChartSquare;
     return (
-      <div className="text-center py-10">
-        <h2 className="text-2xl font-semibold text-muted-foreground">{currentView === 'calendar' ? 'Calendar View' : 'Gantt Chart View'}</h2>
-        <p className="text-muted-foreground">This view is coming soon!</p>
+      <div className="text-center py-16 bg-card rounded-lg shadow-sm border border-dashed">
+        <Icon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+        <h2 className="text-xl font-semibold text-foreground mb-2">
+          {currentView === 'calendar' ? 'Calendar View' : 'Gantt Chart View'}
+        </h2>
+        <p className="text-muted-foreground max-w-md mx-auto">
+          This view is under construction and will be available soon to help you visualize your tasks over time!
+        </p>
       </div>
     );
   }
@@ -267,7 +271,7 @@ export const TaskList: FC<TaskListProps> = (props) => {
 
   if (currentView === 'compactList') {
     return (
-      <div className="space-y-0"> {/* Reduced space between items for a more compact feel */}
+      <div className="space-y-0">
         {tasks.map((task) => (
           <CompactListItem
             key={task.id}
@@ -289,7 +293,7 @@ export const TaskList: FC<TaskListProps> = (props) => {
 
   // Default to Grid View
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
       {tasks.map((task) => (
         <TaskCard
           key={task.id}

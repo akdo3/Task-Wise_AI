@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -69,8 +70,8 @@ export const TaskForm: FC<TaskFormProps> = ({
   onClearActiveImageQuery,
   stagedEmoji,
   onClearStagedEmoji,
-  generateImageAction: passedGenerateImageAction, // Renamed to avoid conflict
-  suggestRandomTaskAction: passedSuggestRandomTaskAction, // Renamed
+  generateImageAction: passedGenerateImageAction,
+  suggestRandomTaskAction: passedSuggestRandomTaskAction,
 }) => {
   const { toast } = useToast();
   const [currentTag, setCurrentTag] = useState('');
@@ -109,7 +110,6 @@ export const TaskForm: FC<TaskFormProps> = ({
   });
 
   const watchedTags = watch('tags') || [];
-  const currentTitle = watch('title');
   const currentImageUrl = watch('imageUrl');
   const currentFormTitle = watch('title');
 
@@ -356,8 +356,8 @@ export const TaskForm: FC<TaskFormProps> = ({
   const canReviewImage = currentImageUrl && !currentImageUrl.startsWith('data:') && !currentImageUrl.startsWith('https://placehold.co');
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 p-1">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 sm:space-y-8 p-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 sm:gap-y-6">
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2">
@@ -422,11 +422,11 @@ export const TaskForm: FC<TaskFormProps> = ({
 
       <div>
         <Label htmlFor="description" className="text-sm font-medium">Description (Optional)</Label>
-        <Textarea id="description" {...register('description')} rows={5} className="mt-1.5"/>
+        <Textarea id="description" {...register('description')} rows={4} className="mt-1.5"/>
         {errors.description && <p className="text-xs text-destructive mt-1.5">{errors.description.message}</p>}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 sm:gap-y-6">
         <div>
           <Label htmlFor="dueDate" className="text-sm font-medium">Due Date (Optional)</Label>
           <Controller
@@ -556,7 +556,7 @@ export const TaskForm: FC<TaskFormProps> = ({
       
       <div>
         <Label htmlFor="imageUrl" className="text-sm font-medium">Image URL (Optional)</Label>
-        <div className="flex items-center gap-2 mt-1.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1.5">
             <div className="relative flex-grow">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <ImageIcon className="h-4 w-4 text-muted-foreground" />
@@ -565,20 +565,22 @@ export const TaskForm: FC<TaskFormProps> = ({
                     id="imageUrl" 
                     {...register('imageUrl')} 
                     placeholder="https://example.com/image.png or generate one" 
-                    className="pl-10"
+                    className="pl-10 w-full"
                     aria-invalid={errors.imageUrl ? "true" : "false"}
                 />
             </div>
-             {canReviewImage && (
-              <Button type="button" variant="outline" onClick={handleTriggerImageReview} disabled={isImageReviewing || !currentTitle} className="shrink-0">
-                {isImageReviewing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}
-                {isImageReviewing ? 'Reviewing...' : 'AI Review Image'}
-              </Button>
-            )}
-            <Button type="button" variant="outline" onClick={handleGenerateImage} disabled={isImageGenerating} className="shrink-0">
-                 {isImageGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 animate-pulse" />}
-                {isImageGenerating ? 'Generating...' : (activeImageQuery ? 'Generate with AI Query' : 'Generate Image')}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:shrink-0 w-full sm:w-auto">
+                 {canReviewImage && (
+                  <Button type="button" variant="outline" onClick={handleTriggerImageReview} disabled={isImageReviewing || !currentFormTitle} className="w-full sm:w-auto">
+                    {isImageReviewing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}
+                    {isImageReviewing ? 'Reviewing...' : 'AI Review Image'}
+                  </Button>
+                )}
+                <Button type="button" variant="outline" onClick={handleGenerateImage} disabled={isImageGenerating} className="w-full sm:w-auto">
+                     {isImageGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 animate-pulse" />}
+                    {isImageGenerating ? 'Generating...' : (activeImageQuery ? 'Generate with AI Query' : 'Generate Image')}
+                </Button>
+            </div>
         </div>
         {errors.imageUrl && <p className="text-xs text-destructive mt-1.5">{errors.imageUrl.message}</p>}
         {activeImageQuery && (
@@ -593,13 +595,13 @@ export const TaskForm: FC<TaskFormProps> = ({
         )}
       </div>
       
-      <div className="flex justify-end gap-3 pt-4">
-        <Button type="button" variant="ghost" onClick={onCancel} className="px-6">Cancel</Button>
-        <Button type="button" onClick={handleAiAssist} variant="outline" disabled={isAiLoading} className="px-6">
+      <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4">
+        <Button type="button" variant="ghost" onClick={onCancel} className="px-6 order-1 sm:order-none">Cancel</Button>
+        <Button type="button" onClick={handleAiAssist} variant="outline" disabled={isAiLoading} className="px-6 order-2 sm:order-none">
             {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4 animate-pulse" />}
             {isAiLoading ? 'Thinking...' : 'AI Assist'}
         </Button>
-        <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6">
+        <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 order-3 sm:order-none">
           {task ? 'Save Changes' : 'Create Task'}
         </Button>
       </div>
