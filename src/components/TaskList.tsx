@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { format, parseISO } from 'date-fns';
-import { CalendarDays, Edit3, Trash2, CheckCircle, Circle, UserCheck, Sparkles, Bell, ListChecks } from 'lucide-react';
+import { CalendarDays, Edit3, Trash2, CheckCircle, Circle, UserCheck, Sparkles, Bell, ListChecks, GanttChartSquare } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { KanbanColumn } from './KanbanColumn';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { CalendarView } from './CalendarView'; // Added import
 
 interface TaskListProps {
   tasks: Task[];
@@ -242,9 +243,9 @@ const KanbanBoardView: FC<TaskListProps> = ({ tasks, onEditTask, taskOfTheDayId 
 
 
 export const TaskList: FC<TaskListProps> = (props) => {
-  const { tasks, currentView, taskOfTheDayId, onToggleSubtask } = props;
+  const { tasks, currentView, taskOfTheDayId, onToggleSubtask, onEditTask } = props;
 
-  if (tasks.length === 0 && (currentView !== 'calendar' && currentView !== 'gantt')) {
+  if (tasks.length === 0 && currentView !== 'gantt') { // Allow Gantt to show its placeholder
     return (
       <div className="text-center py-10">
         <h2 className="text-2xl font-semibold text-muted-foreground">No tasks yet!</h2>
@@ -253,16 +254,20 @@ export const TaskList: FC<TaskListProps> = (props) => {
     );
   }
 
-  if (currentView === 'calendar' || currentView === 'gantt') {
-    const Icon = currentView === 'calendar' ? CalendarDays : GanttChartSquare;
+  if (currentView === 'calendar') {
+    return <CalendarView tasks={tasks} onEditTask={onEditTask} />;
+  }
+
+  if (currentView === 'gantt') {
+    const Icon = GanttChartSquare;
     return (
       <div className="text-center py-16 bg-card rounded-lg shadow-sm border border-dashed">
         <Icon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
         <h2 className="text-xl font-semibold text-foreground mb-2">
-          {currentView === 'calendar' ? 'Calendar View' : 'Gantt Chart View'}
+          Gantt Chart View
         </h2>
         <p className="text-muted-foreground max-w-md mx-auto">
-          This view is under construction and will be available soon to help you visualize your tasks over time!
+          This view is under construction and will be available soon to help you visualize your task timelines!
         </p>
       </div>
     );

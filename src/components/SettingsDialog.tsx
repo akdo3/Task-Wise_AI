@@ -22,7 +22,7 @@ const viewOptions: { value: CurrentView; label: string; icon: JSX.Element, disab
   { value: 'grid', label: 'Grid View', icon: <LayoutGrid className="mr-2 h-4 w-4" /> },
   { value: 'compactList', label: 'List View', icon: <List className="mr-2 h-4 w-4" /> },
   { value: 'kanban', label: 'Kanban Board', icon: <Trello className="mr-2 h-4 w-4" /> },
-  { value: 'calendar', label: 'Calendar View', icon: <CalendarDays className="mr-2 h-4 w-4" />, disabled: true, comingSoon: true },
+  { value: 'calendar', label: 'Calendar View', icon: <CalendarDays className="mr-2 h-4 w-4" /> },
   { value: 'gantt', label: 'Gantt Chart', icon: <GanttChartSquare className="mr-2 h-4 w-4" />, disabled: true, comingSoon: true },
 ];
 

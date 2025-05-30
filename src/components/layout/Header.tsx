@@ -20,7 +20,7 @@ interface HeaderProps {
   onOpenFilterDialog: () => void;
 }
 
-const implementedViews: CurrentView[] = ['grid', 'compactList', 'kanban'];
+const implementedViews: CurrentView[] = ['grid', 'compactList', 'kanban', 'calendar'];
 
 const viewIcons: Record<CurrentView, JSX.Element> = {
   grid: <LayoutGrid className="h-5 w-5" />,
