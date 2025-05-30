@@ -7,7 +7,8 @@
  * - ReviewTaskImageOutput - Output type for the flow (exported).
  */
 
-import {ai} from '@/ai/genkit';
+import {ai} from '@/ai/genkit'; // يفترض أن هذا هو مثيل Genkit المهيأ
+import { geminiProVision } from '@genkit-ai/googleai'; // <--- أضف هذا الاستيراد
 import {z} from 'genkit';
 
 const ReviewTaskImageInputSchema = z.object({
@@ -65,8 +66,8 @@ const reviewTaskImageFlow = ai.defineFlow(
   async (input) => {
     // Use a Gemini model capable of multimodal input
     const {output} = await ai.generate({
-      model: 'googleai/gemini-pro-vision', // Or another suitable multimodal model
-      prompt: await prompt.render(input), 
+      model: geminiProVision, // <--- التغيير هنا: استخدم الكائن المستورد
+      prompt: await prompt.render(input),
       output: { schema: ReviewTaskImageOutputSchema },
       // It's good practice to ensure the model is allowed to generate text.
       // If using gemini-2.0-flash-exp for this, it might need responseModalities.
