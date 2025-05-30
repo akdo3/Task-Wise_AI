@@ -31,11 +31,13 @@ jobs:
         run: npm run export # أو الأمر الذي يقوم بالبناء والتصدير
       - name: Add .nojekyll file
         run: touch ./out/.nojekyll # لمنع Jekyll من معالجة الملفات
+      - name: Verify output directory
+        run: ls -al ./out # Debugging step to verify the directory exists and contains files
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-         name: built-files
-         path: ./out
+          name: built-files
+          path: ./out # Ensure this path is correct
 
   deploy:
     environment:
