@@ -35,10 +35,6 @@ jobs:
         uses: actions/upload-pages-artifact@v2
         with:
           path: ./out # The folder containing the built files
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
-        with:
-          path: ./out # المجلد الذي يحتوي على الملفات المبنية
 
   deploy:
     environment:
